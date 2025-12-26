@@ -47,6 +47,7 @@ const routerMap = {
   models: '/console/models',
   playground: '/console/playground',
   personal: '/console/personal',
+  ranking: '/console/ranking',
 };
 
 const SiderBar = ({ onNavigate = () => {} }) => {
@@ -102,6 +103,11 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         to: '/task',
         className:
           localStorage.getItem('enable_task') === 'true' ? '' : 'tableHiddle',
+      },
+      {
+        text: t('用户排名'),
+        itemKey: 'ranking',
+        to: '/ranking',
       },
     ];
 

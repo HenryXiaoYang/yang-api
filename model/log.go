@@ -385,3 +385,71 @@ func DeleteOldLog(ctx context.Context, targetTimestamp int64, limit int) (int64,
 
 	return total, nil
 }
+
+type UserCallRanking struct {
+	Username    string `json:"username"`
+	DisplayName string `json:"display_name"`
+	Count       int64  `json:"count"`
+}
+
+type IPCallRanking struct {
+	Ip       string `json:"ip"`
+	Username string `json:"username"`
+	Count    int64  `json:"count"`
+}
+
+type UserTokenRanking struct {
+	Username    string `json:"username"`
+	DisplayName string `json:"display_name"`
+	Tokens      int64  `json:"tokens"`
+}
+
+type RankingData struct {
+	UserCallRanking  []UserCallRanking
+	IPCallRanking    []IPCallRanking
+	UserTokenRanking []UserTokenRanking
+}
+
+func GetTodayUserCallRanking(limit int) ([]UserCallRanking, error) {
+	now := time.Now()
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).Unix()
+	var rankings []UserCallRanking
+	err := LOG_DB.Table("logs").
+		Select("logs.username, COALESCE(users.display_name, '') as display_name, count(*) as count").
+		Joins("LEFT JOIN users ON logs.username = users.username").
+		Where("logs.created_at >= ? AND logs.type = ?", todayStart, LogTypeConsume).
+		Group("logs.username, users.display_name").
+		Order("count desc").
+		Limit(limit).
+		Scan(&rankings).Error
+	return rankings, err
+}
+
+func GetTodayIPCallRanking(limit int) ([]IPCallRanking, error) {
+	now := time.Now()
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).Unix()
+	var rankings []IPCallRanking
+	err := LOG_DB.Model(&Log{}).
+		Select("ip, string_agg(DISTINCT username, ',') as username, count(*) as count").
+		Where("created_at >= ? AND type = ? AND ip != ''", todayStart, LogTypeConsume).
+		Group("ip").
+		Order("count desc").
+		Limit(limit).
+		Scan(&rankings).Error
+	return rankings, err
+}
+
+func GetTodayUserTokenRanking(limit int) ([]UserTokenRanking, error) {
+	now := time.Now()
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).Unix()
+	var rankings []UserTokenRanking
+	err := LOG_DB.Table("logs").
+		Select("logs.username, COALESCE(users.display_name, '') as display_name, sum(logs.prompt_tokens + logs.completion_tokens) as tokens").
+		Joins("LEFT JOIN users ON logs.username = users.username").
+		Where("logs.created_at >= ? AND logs.type = ?", todayStart, LogTypeConsume).
+		Group("logs.username, users.display_name").
+		Order("tokens desc").
+		Limit(limit).
+		Scan(&rankings).Error
+	return rankings, err
+}

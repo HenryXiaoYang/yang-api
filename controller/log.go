@@ -3,6 +3,9 @@ package controller
 import (
 	"net/http"
 	"strconv"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
@@ -166,4 +169,107 @@ func DeleteHistoryLogs(c *gin.Context) {
 		"data":    count,
 	})
 	return
+}
+
+var (
+	rankingCache     *model.RankingData
+	rankingCacheTime int64
+	rankingCacheDay  int
+	rankingCacheMu   sync.RWMutex
+)
+
+func GetRankingStats(c *gin.Context) {
+	isAdmin := c.GetInt("role") >= common.RoleAdminUser
+	now := common.GetTimestamp()
+	today := time.Now().Day()
+
+	// 检查缓存是否有效（5分钟且同一天）
+	rankingCacheMu.RLock()
+	if rankingCache != nil && now-rankingCacheTime < 300 && rankingCacheDay == today {
+		data := rankingCache
+		rankingCacheMu.RUnlock()
+
+		// 深拷贝IP排名用于脱敏
+		ipRanking := make([]model.IPCallRanking, len(data.IPCallRanking))
+		copy(ipRanking, data.IPCallRanking)
+		if !isAdmin {
+			for i := range ipRanking {
+				ipRanking[i].Ip = maskIP(ipRanking[i].Ip)
+			}
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"message": "",
+			"data": gin.H{
+				"user_call_ranking":  data.UserCallRanking,
+				"ip_call_ranking":    ipRanking,
+				"user_token_ranking": data.UserTokenRanking,
+			},
+		})
+		return
+	}
+	rankingCacheMu.RUnlock()
+
+	limit := 100
+	userCallRanking, err := model.GetTodayUserCallRanking(limit)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+
+	ipCallRanking, err := model.GetTodayIPCallRanking(limit)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+
+	userTokenRanking, err := model.GetTodayUserTokenRanking(limit)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+
+	// 更新缓存
+	rankingCacheMu.Lock()
+	rankingCache = &model.RankingData{
+		UserCallRanking:  userCallRanking,
+		IPCallRanking:    ipCallRanking,
+		UserTokenRanking: userTokenRanking,
+	}
+	rankingCacheTime = now
+	rankingCacheDay = today
+	rankingCacheMu.Unlock()
+
+	// 非管理员时对IP进行脱敏
+	responseIPRanking := make([]model.IPCallRanking, len(ipCallRanking))
+	copy(responseIPRanking, ipCallRanking)
+	if !isAdmin {
+		for i := range responseIPRanking {
+			responseIPRanking[i].Ip = maskIP(responseIPRanking[i].Ip)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data": gin.H{
+			"user_call_ranking":  userCallRanking,
+			"ip_call_ranking":    responseIPRanking,
+			"user_token_ranking": userTokenRanking,
+		},
+	})
+}
+
+func maskIP(ip string) string {
+	parts := strings.Split(ip, ".")
+	if len(parts) == 4 {
+		// IPv4: 192.168.1.100 -> 192.***.***100
+		return parts[0] + ".***.***." + parts[3]
+	}
+	// IPv6 或其他格式：只显示前后部分
+	if len(ip) > 8 {
+		return ip[:4] + "****" + ip[len(ip)-4:]
+	}
+	return "****"
 }

@@ -43,6 +43,7 @@ import Pricing from './pages/Pricing';
 import Task from './pages/Task';
 import ModelPage from './pages/Model';
 import Playground from './pages/Playground';
+import Ranking from './pages/Ranking';
 import OAuth2Callback from './components/auth/OAuth2Callback';
 import PersonalSetting from './components/settings/PersonalSetting';
 import Setup from './pages/Setup';
@@ -281,6 +282,14 @@ function App() {
               <Suspense fallback={<Loading></Loading>} key={location.pathname}>
                 <Task />
               </Suspense>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path='/console/ranking'
+          element={
+            <PrivateRoute>
+              <Ranking />
             </PrivateRoute>
           }
         />
