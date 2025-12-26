@@ -430,8 +430,17 @@ func GetTodayIPCallRanking(limit int) ([]IPCallRanking, error) {
 	now := time.Now()
 	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).Unix()
 	var rankings []IPCallRanking
+
+	var selectSQL string
+	if common.UsingPostgreSQL {
+		selectSQL = "logs.ip, string_agg(DISTINCT logs.username, ',') as username, string_agg(DISTINCT COALESCE(users.display_name, ''), ',') as display_name, count(*) as count"
+	} else {
+		// SQLite and MySQL
+		selectSQL = "logs.ip, GROUP_CONCAT(DISTINCT logs.username) as username, GROUP_CONCAT(DISTINCT COALESCE(users.display_name, '')) as display_name, count(*) as count"
+	}
+
 	err := LOG_DB.Table("logs").
-		Select("logs.ip, string_agg(DISTINCT logs.username, ',') as username, string_agg(DISTINCT COALESCE(users.display_name, ''), ',') as display_name, count(*) as count").
+		Select(selectSQL).
 		Joins("LEFT JOIN users ON logs.username = users.username").
 		Where("logs.created_at >= ? AND logs.type = ? AND logs.ip != '' AND logs.user_id != 1", todayStart, LogTypeConsume).
 		Group("logs.ip").
