@@ -128,7 +128,7 @@ const Ranking = () => {
   ];
 
   return (
-    <div className='mt-[60px] px-2' style={{ height: 'calc(100vh - 80px)' }}>
+    <div className='mt-[60px] px-2'>
       <div className='mb-4'>
         <div className='flex items-center gap-2 mb-2'>
           <Trophy size={24} className='text-yellow-500' />
@@ -142,16 +142,15 @@ const Ranking = () => {
       </div>
 
       <Spin spinning={loading}>
-        <div className='grid grid-cols-1 lg:grid-cols-3 gap-4' style={{ height: 'calc(100vh - 180px)' }}>
+        <div className='grid grid-cols-1 lg:grid-cols-3 gap-4'>
           <Card
+            className='table-scroll-card'
             title={
               <div className='flex items-center gap-2'>
                 <Users size={18} />
                 {t('用户调用次数排名')}
               </div>
             }
-            style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-            bodyStyle={{ flex: 1, overflow: 'auto' }}
           >
             <Table
               columns={userCallColumns}
@@ -159,18 +158,18 @@ const Ranking = () => {
               pagination={false}
               size='small'
               empty={t('暂无数据')}
+              rowKey='username'
             />
           </Card>
 
           <Card
+            className='table-scroll-card'
             title={
               <div className='flex items-center gap-2'>
                 <Globe size={18} />
                 {t('IP调用次数排名')}
               </div>
             }
-            style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-            bodyStyle={{ flex: 1, overflow: 'auto' }}
           >
             <Table
               columns={ipCallColumns}
@@ -178,18 +177,18 @@ const Ranking = () => {
               pagination={false}
               size='small'
               empty={t('暂无数据')}
+              rowKey='ip'
             />
           </Card>
 
           <Card
+            className='table-scroll-card'
             title={
               <div className='flex items-center gap-2'>
                 <Coins size={18} />
                 {t('用户Token消耗排名')}
               </div>
             }
-            style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-            bodyStyle={{ flex: 1, overflow: 'auto' }}
           >
             <Table
               columns={userTokenColumns}
@@ -197,6 +196,7 @@ const Ranking = () => {
               pagination={false}
               size='small'
               empty={t('暂无数据')}
+              rowKey='username'
             />
           </Card>
         </div>
