@@ -109,10 +109,15 @@ const Ranking = () => {
     { title: t('调用次数'), dataIndex: 'count', align: 'right' },
   ];
 
+  const renderIPUsers = (_, record) => {
+    const names = record.display_name || record.username || '';
+    return names.split(',').filter(n => n).join(', ') || '-';
+  };
+
   const ipCallColumns = [
     { title: t('排名'), dataIndex: 'rank', width: 60, render: renderRank },
     { title: 'IP', dataIndex: 'ip' },
-    { title: t('用户'), dataIndex: 'username' },
+    { title: t('用户'), dataIndex: 'username', render: renderIPUsers },
     { title: t('调用次数'), dataIndex: 'count', align: 'right' },
   ];
 
