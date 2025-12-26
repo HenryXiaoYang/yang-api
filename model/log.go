@@ -393,9 +393,10 @@ type UserCallRanking struct {
 }
 
 type IPCallRanking struct {
-	Ip       string `json:"ip"`
-	Username string `json:"username"`
-	Count    int64  `json:"count"`
+	Ip          string `json:"ip"`
+	Username    string `json:"username"`
+	DisplayName string `json:"display_name"`
+	Count       int64  `json:"count"`
 }
 
 type UserTokenRanking struct {
@@ -417,7 +418,7 @@ func GetTodayUserCallRanking(limit int) ([]UserCallRanking, error) {
 	err := LOG_DB.Table("logs").
 		Select("logs.username, COALESCE(users.display_name, '') as display_name, count(*) as count").
 		Joins("LEFT JOIN users ON logs.username = users.username").
-		Where("logs.created_at >= ? AND logs.type = ?", todayStart, LogTypeConsume).
+		Where("logs.created_at >= ? AND logs.type = ? AND logs.user_id != 1", todayStart, LogTypeConsume).
 		Group("logs.username, users.display_name").
 		Order("count desc").
 		Limit(limit).
@@ -429,10 +430,11 @@ func GetTodayIPCallRanking(limit int) ([]IPCallRanking, error) {
 	now := time.Now()
 	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).Unix()
 	var rankings []IPCallRanking
-	err := LOG_DB.Model(&Log{}).
-		Select("ip, string_agg(DISTINCT username, ',') as username, count(*) as count").
-		Where("created_at >= ? AND type = ? AND ip != ''", todayStart, LogTypeConsume).
-		Group("ip").
+	err := LOG_DB.Table("logs").
+		Select("logs.ip, string_agg(DISTINCT logs.username, ',') as username, string_agg(DISTINCT COALESCE(users.display_name, ''), ',') as display_name, count(*) as count").
+		Joins("LEFT JOIN users ON logs.username = users.username").
+		Where("logs.created_at >= ? AND logs.type = ? AND logs.ip != '' AND logs.user_id != 1", todayStart, LogTypeConsume).
+		Group("logs.ip").
 		Order("count desc").
 		Limit(limit).
 		Scan(&rankings).Error
@@ -446,7 +448,7 @@ func GetTodayUserTokenRanking(limit int) ([]UserTokenRanking, error) {
 	err := LOG_DB.Table("logs").
 		Select("logs.username, COALESCE(users.display_name, '') as display_name, sum(logs.prompt_tokens + logs.completion_tokens) as tokens").
 		Joins("LEFT JOIN users ON logs.username = users.username").
-		Where("logs.created_at >= ? AND logs.type = ?", todayStart, LogTypeConsume).
+		Where("logs.created_at >= ? AND logs.type = ? AND logs.user_id != 1", todayStart, LogTypeConsume).
 		Group("logs.username, users.display_name").
 		Order("tokens desc").
 		Limit(limit).
