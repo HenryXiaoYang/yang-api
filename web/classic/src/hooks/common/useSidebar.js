@@ -88,6 +88,37 @@ export const useSidebar = () => {
     instanceIdRef.current = `sidebar-${Date.now()}-${randomPart}`;
   }
 
+  // 默认配置
+  const defaultAdminConfig = {
+    chat: {
+      enabled: true,
+      playground: true,
+      chat: true,
+    },
+    console: {
+      enabled: true,
+      detail: true,
+      token: true,
+      log: true,
+      midjourney: true,
+      task: true,
+      ranking: true,
+    },
+    personal: {
+      enabled: true,
+      topup: true,
+      personal: true,
+    },
+    admin: {
+      enabled: true,
+      channel: true,
+      models: true,
+      redemption: true,
+      user: true,
+      setting: true,
+    },
+  };
+
   // 获取管理员配置
   const adminConfig = useMemo(() => {
     if (statusState?.status?.SidebarModulesAdmin) {
