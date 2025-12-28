@@ -21,7 +21,7 @@ import React, { useState, useEffect } from 'react';
 import { Table, Typography, Spin, Avatar, Tag, Tabs, TabPane } from '@douyinfe/semi-ui';
 import { useTranslation } from 'react-i18next';
 import { API, showError, renderQuota } from '../../helpers';
-import { Trophy, Users, Globe, Coins } from 'lucide-react';
+import { Trophy, Users, Globe, Coins, Network } from 'lucide-react';
 
 const medalColors = {
   gold: { border: '#FFD700', shadow: '0 0 12px #FFD700', text: '#B8860B' },
@@ -59,6 +59,7 @@ const Ranking = () => {
   const [userCallRanking, setUserCallRanking] = useState([]);
   const [ipCallRanking, setIpCallRanking] = useState([]);
   const [userTokenRanking, setUserTokenRanking] = useState([]);
+  const [userIPCountRanking, setUserIPCountRanking] = useState([]);
 
   const loadRankingData = async () => {
     setLoading(true);
@@ -68,6 +69,7 @@ const Ranking = () => {
         setUserCallRanking(res.data.data.user_call_ranking || []);
         setIpCallRanking(res.data.data.ip_call_ranking || []);
         setUserTokenRanking(res.data.data.user_token_ranking || []);
+        setUserIPCountRanking(res.data.data.user_ip_count_ranking || []);
       } else {
         showError(res.data.message);
       }
@@ -151,6 +153,16 @@ const Ranking = () => {
     { title: t('均价/请求'), dataIndex: 'avg', align: 'right', render: (_, record) => record.count > 0 ? renderQuota(Math.round(record.quota / record.count), 4) : '-' },
   ];
 
+  const userIPCountColumns = [
+    { title: t('排名'), dataIndex: 'rank', width: 60, render: renderRank },
+    { title: t('用户名'), dataIndex: 'username', render: renderUserWithAvatar },
+    { title: t('IP数'), dataIndex: 'ip_count', width: 70, align: 'right' },
+    { title: 'IP', dataIndex: 'ip', render: renderIPs },
+    { title: t('调用次数'), dataIndex: 'count', align: 'right' },
+    { title: 'Tokens', dataIndex: 'tokens', align: 'right', render: (tokens) => tokens?.toLocaleString() },
+    { title: t('消耗'), dataIndex: 'quota', align: 'right', render: (quota) => renderQuota(quota, 2) },
+  ];
+
   return (
     <div className='mt-[60px] px-2'>
       <div className='mb-4'>
@@ -200,6 +212,19 @@ const Ranking = () => {
             <Table
               columns={userTokenColumns}
               dataSource={userTokenRanking}
+              pagination={false}
+              size='small'
+              empty={t('暂无数据')}
+              rowKey='username'
+            />
+          </TabPane>
+          <TabPane
+            tab={<span className='flex items-center gap-1'><Network size={16} />{t('用户IP数')}</span>}
+            itemKey='userIPCount'
+          >
+            <Table
+              columns={userIPCountColumns}
+              dataSource={userIPCountRanking}
               pagination={false}
               size='small'
               empty={t('暂无数据')}
