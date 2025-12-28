@@ -18,9 +18,9 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Typography, Spin, Avatar } from '@douyinfe/semi-ui';
+import { Table, Typography, Spin, Avatar, Tag, Tabs, TabPane } from '@douyinfe/semi-ui';
 import { useTranslation } from 'react-i18next';
-import { API, showError } from '../../helpers';
+import { API, showError, renderQuota } from '../../helpers';
 import { Trophy, Users, Globe, Coins } from 'lucide-react';
 
 const medalColors = {
@@ -105,24 +105,39 @@ const Ranking = () => {
 
   const renderIPs = (ips) => {
     if (!ips) return '-';
-    return ips.split(',').filter(n => n).join(', ');
+    const ipList = ips.split(',').filter(n => n);
+    return (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+        {ipList.map((ip, i) => (
+          <Tag key={i} size='small' shape='circle' color='light-blue'>{ip}</Tag>
+        ))}
+      </div>
+    );
   };
 
   const userCallColumns = [
     { title: t('排名'), dataIndex: 'rank', width: 60, render: renderRank },
     { title: t('用户名'), dataIndex: 'username', render: renderUserWithAvatar },
+    { title: t('IP数'), dataIndex: 'ip_count', width: 70, align: 'right' },
     { title: 'IP', dataIndex: 'ip', render: renderIPs },
     { title: t('调用次数'), dataIndex: 'count', align: 'right' },
   ];
 
   const renderIPUsers = (_, record) => {
-    const names = record.display_name || record.username || '';
-    return names.split(',').filter(n => n).join(', ') || '-';
+    const names = (record.display_name || record.username || '').split(',').filter(n => n);
+    return (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+        {names.map((name, i) => (
+          <Tag key={i} size='small' shape='circle' color='cyan'>{name}</Tag>
+        ))}
+      </div>
+    );
   };
 
   const ipCallColumns = [
     { title: t('排名'), dataIndex: 'rank', width: 60, render: renderRank },
     { title: 'IP', dataIndex: 'ip' },
+    { title: t('用户数'), dataIndex: 'user_count', width: 80, align: 'right' },
     { title: t('用户'), dataIndex: 'username', render: renderIPUsers },
     { title: t('调用次数'), dataIndex: 'count', align: 'right' },
   ];
@@ -131,6 +146,9 @@ const Ranking = () => {
     { title: t('排名'), dataIndex: 'rank', width: 60, render: renderRank },
     { title: t('用户名'), dataIndex: 'username', render: renderUserWithAvatar },
     { title: 'Tokens', dataIndex: 'tokens', align: 'right', render: (tokens) => tokens?.toLocaleString() },
+    { title: t('调用次数'), dataIndex: 'count', align: 'right' },
+    { title: t('消耗'), dataIndex: 'quota', align: 'right', render: (quota) => renderQuota(quota, 2) },
+    { title: t('均价/请求'), dataIndex: 'avg', align: 'right', render: (_, record) => record.count > 0 ? renderQuota(Math.round(record.quota / record.count), 4) : '-' },
   ];
 
   return (
@@ -148,15 +166,10 @@ const Ranking = () => {
       </div>
 
       <Spin spinning={loading}>
-        <div className='flex flex-col gap-4'>
-          <Card
-            className='table-scroll-card'
-            title={
-              <div className='flex items-center gap-2'>
-                <Users size={18} />
-                {t('用户调用次数排名')}
-              </div>
-            }
+        <Tabs>
+          <TabPane
+            tab={<span className='flex items-center gap-1'><Users size={16} />{t('用户调用')}</span>}
+            itemKey='userCall'
           >
             <Table
               columns={userCallColumns}
@@ -166,16 +179,10 @@ const Ranking = () => {
               empty={t('暂无数据')}
               rowKey='username'
             />
-          </Card>
-
-          <Card
-            className='table-scroll-card'
-            title={
-              <div className='flex items-center gap-2'>
-                <Globe size={18} />
-                {t('IP调用次数排名')}
-              </div>
-            }
+          </TabPane>
+          <TabPane
+            tab={<span className='flex items-center gap-1'><Globe size={16} />{t('IP调用')}</span>}
+            itemKey='ipCall'
           >
             <Table
               columns={ipCallColumns}
@@ -185,16 +192,10 @@ const Ranking = () => {
               empty={t('暂无数据')}
               rowKey='ip'
             />
-          </Card>
-
-          <Card
-            className='table-scroll-card'
-            title={
-              <div className='flex items-center gap-2'>
-                <Coins size={18} />
-                {t('用户Token消耗排名')}
-              </div>
-            }
+          </TabPane>
+          <TabPane
+            tab={<span className='flex items-center gap-1'><Coins size={16} />{t('Token消耗')}</span>}
+            itemKey='tokenUsage'
           >
             <Table
               columns={userTokenColumns}
@@ -204,8 +205,8 @@ const Ranking = () => {
               empty={t('暂无数据')}
               rowKey='username'
             />
-          </Card>
-        </div>
+          </TabPane>
+        </Tabs>
       </Spin>
     </div>
   );
