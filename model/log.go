@@ -536,6 +536,7 @@ type UserCallRanking struct {
 	Username    string `json:"username"`
 	DisplayName string `json:"display_name"`
 	Ip          string `json:"ip"`
+	IpCount     int64  `json:"ip_count"`
 	Count       int64  `json:"count"`
 }
 
@@ -543,6 +544,7 @@ type IPCallRanking struct {
 	Ip          string `json:"ip"`
 	Username    string `json:"username"`
 	DisplayName string `json:"display_name"`
+	UserCount   int64  `json:"user_count"`
 	Count       int64  `json:"count"`
 }
 
@@ -550,6 +552,8 @@ type UserTokenRanking struct {
 	Username    string `json:"username"`
 	DisplayName string `json:"display_name"`
 	Tokens      int64  `json:"tokens"`
+	Count       int64  `json:"count"`
+	Quota       int64  `json:"quota"`
 }
 
 type RankingData struct {
@@ -565,9 +569,9 @@ func GetTodayUserCallRanking(limit int) ([]UserCallRanking, error) {
 
 	var selectSQL string
 	if common.UsingPostgreSQL {
-		selectSQL = "logs.username, COALESCE(users.display_name, '') as display_name, string_agg(DISTINCT logs.ip, ',') as ip, count(*) as count"
+		selectSQL = "logs.username, COALESCE(users.display_name, '') as display_name, string_agg(DISTINCT logs.ip, ',') as ip, COUNT(DISTINCT logs.ip) as ip_count, count(*) as count"
 	} else {
-		selectSQL = "logs.username, COALESCE(users.display_name, '') as display_name, GROUP_CONCAT(DISTINCT logs.ip) as ip, count(*) as count"
+		selectSQL = "logs.username, COALESCE(users.display_name, '') as display_name, GROUP_CONCAT(DISTINCT logs.ip) as ip, COUNT(DISTINCT logs.ip) as ip_count, count(*) as count"
 	}
 
 	err := LOG_DB.Table("logs").
@@ -588,10 +592,9 @@ func GetTodayIPCallRanking(limit int) ([]IPCallRanking, error) {
 
 	var selectSQL string
 	if common.UsingPostgreSQL {
-		selectSQL = "logs.ip, string_agg(DISTINCT logs.username, ',') as username, string_agg(DISTINCT COALESCE(users.display_name, ''), ',') as display_name, count(*) as count"
+		selectSQL = "logs.ip, string_agg(DISTINCT logs.username, ',') as username, string_agg(DISTINCT COALESCE(users.display_name, ''), ',') as display_name, COUNT(DISTINCT logs.username) as user_count, count(*) as count"
 	} else {
-		// SQLite and MySQL
-		selectSQL = "logs.ip, GROUP_CONCAT(DISTINCT logs.username) as username, GROUP_CONCAT(DISTINCT COALESCE(users.display_name, '')) as display_name, count(*) as count"
+		selectSQL = "logs.ip, GROUP_CONCAT(DISTINCT logs.username) as username, GROUP_CONCAT(DISTINCT COALESCE(users.display_name, '')) as display_name, COUNT(DISTINCT logs.username) as user_count, count(*) as count"
 	}
 
 	err := LOG_DB.Table("logs").
@@ -610,7 +613,7 @@ func GetTodayUserTokenRanking(limit int) ([]UserTokenRanking, error) {
 	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).Unix()
 	var rankings []UserTokenRanking
 	err := LOG_DB.Table("logs").
-		Select("logs.username, COALESCE(users.display_name, '') as display_name, sum(logs.prompt_tokens + logs.completion_tokens) as tokens").
+		Select("logs.username, COALESCE(users.display_name, '') as display_name, sum(logs.prompt_tokens + logs.completion_tokens) as tokens, count(*) as count, sum(logs.quota) as quota").
 		Joins("LEFT JOIN users ON logs.username = users.username").
 		Where("logs.created_at >= ? AND logs.type = ? AND logs.user_id != 1", todayStart, LogTypeConsume).
 		Group("logs.username, users.display_name").
