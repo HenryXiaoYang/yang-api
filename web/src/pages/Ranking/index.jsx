@@ -103,9 +103,15 @@ const Ranking = () => {
     );
   };
 
+  const renderIPs = (ips) => {
+    if (!ips) return '-';
+    return ips.split(',').filter(n => n).join(', ');
+  };
+
   const userCallColumns = [
     { title: t('排名'), dataIndex: 'rank', width: 60, render: renderRank },
     { title: t('用户名'), dataIndex: 'username', render: renderUserWithAvatar },
+    { title: 'IP', dataIndex: 'ip', render: renderIPs },
     { title: t('调用次数'), dataIndex: 'count', align: 'right' },
   ];
 
@@ -142,7 +148,7 @@ const Ranking = () => {
       </div>
 
       <Spin spinning={loading}>
-        <div className='grid grid-cols-1 lg:grid-cols-3 gap-4'>
+        <div className='flex flex-col gap-4'>
           <Card
             className='table-scroll-card'
             title={
