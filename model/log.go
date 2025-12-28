@@ -503,7 +503,7 @@ func GetTodayUserIPCountRanking(limit int) ([]UserIPCountRanking, error) {
 	err := LOG_DB.Table("logs").
 		Select(selectSQL).
 		Joins("LEFT JOIN users ON logs.username = users.username").
-		Where("logs.created_at >= ? AND logs.type = ? AND logs.user_id != 1", todayStart, LogTypeConsume).
+		Where("logs.created_at >= ? AND logs.type = ? AND logs.ip != '' AND logs.user_id != 1", todayStart, LogTypeConsume).
 		Group("logs.username, users.display_name").
 		Order("ip_count desc").
 		Limit(limit).

@@ -223,27 +223,48 @@ func GetRankingStats(c *gin.Context) {
 	rankingCacheMu.RUnlock()
 
 	limit := 100
-	userCallRanking, err := model.GetTodayUserCallRanking(limit)
-	if err != nil {
-		common.ApiError(c, err)
+	var (
+		userCallRanking        []model.UserCallRanking
+		ipCallRanking          []model.IPCallRanking
+		userTokenRanking       []model.UserTokenRanking
+		userIPCountRanking     []model.UserIPCountRanking
+		err1, err2, err3, err4 error
+		wg                     sync.WaitGroup
+	)
+
+	wg.Add(4)
+	go func() {
+		defer wg.Done()
+		userCallRanking, err1 = model.GetTodayUserCallRanking(limit)
+	}()
+	go func() {
+		defer wg.Done()
+		ipCallRanking, err2 = model.GetTodayIPCallRanking(limit)
+	}()
+	go func() {
+		defer wg.Done()
+		userTokenRanking, err3 = model.GetTodayUserTokenRanking(limit)
+	}()
+	go func() {
+		defer wg.Done()
+		userIPCountRanking, err4 = model.GetTodayUserIPCountRanking(limit)
+	}()
+	wg.Wait()
+
+	if err1 != nil {
+		common.ApiError(c, err1)
 		return
 	}
-
-	ipCallRanking, err := model.GetTodayIPCallRanking(limit)
-	if err != nil {
-		common.ApiError(c, err)
+	if err2 != nil {
+		common.ApiError(c, err2)
 		return
 	}
-
-	userTokenRanking, err := model.GetTodayUserTokenRanking(limit)
-	if err != nil {
-		common.ApiError(c, err)
+	if err3 != nil {
+		common.ApiError(c, err3)
 		return
 	}
-
-	userIPCountRanking, err := model.GetTodayUserIPCountRanking(limit)
-	if err != nil {
-		common.ApiError(c, err)
+	if err4 != nil {
+		common.ApiError(c, err4)
 		return
 	}
 
