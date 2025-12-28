@@ -194,6 +194,8 @@ func GetRankingStats(c *gin.Context) {
 		copy(userCallRanking, data.UserCallRanking)
 		ipRanking := make([]model.IPCallRanking, len(data.IPCallRanking))
 		copy(ipRanking, data.IPCallRanking)
+		userIPCountRanking := make([]model.UserIPCountRanking, len(data.UserIPCountRanking))
+		copy(userIPCountRanking, data.UserIPCountRanking)
 		if !isAdmin {
 			for i := range userCallRanking {
 				userCallRanking[i].Ip = maskIPs(userCallRanking[i].Ip)
@@ -201,15 +203,19 @@ func GetRankingStats(c *gin.Context) {
 			for i := range ipRanking {
 				ipRanking[i].Ip = maskIP(ipRanking[i].Ip)
 			}
+			for i := range userIPCountRanking {
+				userIPCountRanking[i].Ip = maskIPs(userIPCountRanking[i].Ip)
+			}
 		}
 
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
 			"message": "",
 			"data": gin.H{
-				"user_call_ranking":  userCallRanking,
-				"ip_call_ranking":    ipRanking,
-				"user_token_ranking": data.UserTokenRanking,
+				"user_call_ranking":     userCallRanking,
+				"ip_call_ranking":       ipRanking,
+				"user_token_ranking":    data.UserTokenRanking,
+				"user_ip_count_ranking": userIPCountRanking,
 			},
 		})
 		return
@@ -235,12 +241,19 @@ func GetRankingStats(c *gin.Context) {
 		return
 	}
 
+	userIPCountRanking, err := model.GetTodayUserIPCountRanking(limit)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+
 	// 更新缓存
 	rankingCacheMu.Lock()
 	rankingCache = &model.RankingData{
-		UserCallRanking:  userCallRanking,
-		IPCallRanking:    ipCallRanking,
-		UserTokenRanking: userTokenRanking,
+		UserCallRanking:    userCallRanking,
+		IPCallRanking:      ipCallRanking,
+		UserTokenRanking:   userTokenRanking,
+		UserIPCountRanking: userIPCountRanking,
 	}
 	rankingCacheTime = now
 	rankingCacheDay = today
@@ -251,6 +264,8 @@ func GetRankingStats(c *gin.Context) {
 	copy(responseUserCallRanking, userCallRanking)
 	responseIPRanking := make([]model.IPCallRanking, len(ipCallRanking))
 	copy(responseIPRanking, ipCallRanking)
+	responseUserIPCountRanking := make([]model.UserIPCountRanking, len(userIPCountRanking))
+	copy(responseUserIPCountRanking, userIPCountRanking)
 	if !isAdmin {
 		for i := range responseUserCallRanking {
 			responseUserCallRanking[i].Ip = maskIPs(responseUserCallRanking[i].Ip)
@@ -258,15 +273,19 @@ func GetRankingStats(c *gin.Context) {
 		for i := range responseIPRanking {
 			responseIPRanking[i].Ip = maskIP(responseIPRanking[i].Ip)
 		}
+		for i := range responseUserIPCountRanking {
+			responseUserIPCountRanking[i].Ip = maskIPs(responseUserIPCountRanking[i].Ip)
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
 		"data": gin.H{
-			"user_call_ranking":  responseUserCallRanking,
-			"ip_call_ranking":    responseIPRanking,
-			"user_token_ranking": userTokenRanking,
+			"user_call_ranking":     responseUserCallRanking,
+			"ip_call_ranking":       responseIPRanking,
+			"user_token_ranking":    userTokenRanking,
+			"user_ip_count_ranking": responseUserIPCountRanking,
 		},
 	})
 }

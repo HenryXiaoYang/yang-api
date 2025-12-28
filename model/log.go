@@ -410,10 +410,21 @@ type UserTokenRanking struct {
 	Quota       int64  `json:"quota"`
 }
 
+type UserIPCountRanking struct {
+	Username    string `json:"username"`
+	DisplayName string `json:"display_name"`
+	Ip          string `json:"ip"`
+	IpCount     int64  `json:"ip_count"`
+	Count       int64  `json:"count"`
+	Tokens      int64  `json:"tokens"`
+	Quota       int64  `json:"quota"`
+}
+
 type RankingData struct {
-	UserCallRanking  []UserCallRanking
-	IPCallRanking    []IPCallRanking
-	UserTokenRanking []UserTokenRanking
+	UserCallRanking    []UserCallRanking
+	IPCallRanking      []IPCallRanking
+	UserTokenRanking   []UserTokenRanking
+	UserIPCountRanking []UserIPCountRanking
 }
 
 func GetTodayUserCallRanking(limit int) ([]UserCallRanking, error) {
@@ -472,6 +483,29 @@ func GetTodayUserTokenRanking(limit int) ([]UserTokenRanking, error) {
 		Where("logs.created_at >= ? AND logs.type = ? AND logs.user_id != 1", todayStart, LogTypeConsume).
 		Group("logs.username, users.display_name").
 		Order("tokens desc").
+		Limit(limit).
+		Scan(&rankings).Error
+	return rankings, err
+}
+
+func GetTodayUserIPCountRanking(limit int) ([]UserIPCountRanking, error) {
+	now := time.Now()
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).Unix()
+	var rankings []UserIPCountRanking
+
+	var selectSQL string
+	if common.UsingPostgreSQL {
+		selectSQL = "logs.username, COALESCE(users.display_name, '') as display_name, string_agg(DISTINCT logs.ip, ',') as ip, COUNT(DISTINCT logs.ip) as ip_count, count(*) as count, sum(logs.prompt_tokens + logs.completion_tokens) as tokens, sum(logs.quota) as quota"
+	} else {
+		selectSQL = "logs.username, COALESCE(users.display_name, '') as display_name, GROUP_CONCAT(DISTINCT logs.ip) as ip, COUNT(DISTINCT logs.ip) as ip_count, count(*) as count, sum(logs.prompt_tokens + logs.completion_tokens) as tokens, sum(logs.quota) as quota"
+	}
+
+	err := LOG_DB.Table("logs").
+		Select(selectSQL).
+		Joins("LEFT JOIN users ON logs.username = users.username").
+		Where("logs.created_at >= ? AND logs.type = ? AND logs.user_id != 1", todayStart, LogTypeConsume).
+		Group("logs.username, users.display_name").
+		Order("ip_count desc").
 		Limit(limit).
 		Scan(&rankings).Error
 	return rankings, err
