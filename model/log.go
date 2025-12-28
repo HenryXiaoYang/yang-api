@@ -389,6 +389,7 @@ func DeleteOldLog(ctx context.Context, targetTimestamp int64, limit int) (int64,
 type UserCallRanking struct {
 	Username    string `json:"username"`
 	DisplayName string `json:"display_name"`
+	Ip          string `json:"ip"`
 	Count       int64  `json:"count"`
 }
 
@@ -415,8 +416,16 @@ func GetTodayUserCallRanking(limit int) ([]UserCallRanking, error) {
 	now := time.Now()
 	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).Unix()
 	var rankings []UserCallRanking
+
+	var selectSQL string
+	if common.UsingPostgreSQL {
+		selectSQL = "logs.username, COALESCE(users.display_name, '') as display_name, string_agg(DISTINCT logs.ip, ',') as ip, count(*) as count"
+	} else {
+		selectSQL = "logs.username, COALESCE(users.display_name, '') as display_name, GROUP_CONCAT(DISTINCT logs.ip) as ip, count(*) as count"
+	}
+
 	err := LOG_DB.Table("logs").
-		Select("logs.username, COALESCE(users.display_name, '') as display_name, count(*) as count").
+		Select(selectSQL).
 		Joins("LEFT JOIN users ON logs.username = users.username").
 		Where("logs.created_at >= ? AND logs.type = ? AND logs.user_id != 1", todayStart, LogTypeConsume).
 		Group("logs.username, users.display_name").

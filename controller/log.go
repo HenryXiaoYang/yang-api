@@ -189,10 +189,15 @@ func GetRankingStats(c *gin.Context) {
 		data := rankingCache
 		rankingCacheMu.RUnlock()
 
-		// 深拷贝IP排名用于脱敏
+		// 深拷贝用于脱敏
+		userCallRanking := make([]model.UserCallRanking, len(data.UserCallRanking))
+		copy(userCallRanking, data.UserCallRanking)
 		ipRanking := make([]model.IPCallRanking, len(data.IPCallRanking))
 		copy(ipRanking, data.IPCallRanking)
 		if !isAdmin {
+			for i := range userCallRanking {
+				userCallRanking[i].Ip = maskIPs(userCallRanking[i].Ip)
+			}
 			for i := range ipRanking {
 				ipRanking[i].Ip = maskIP(ipRanking[i].Ip)
 			}
@@ -202,7 +207,7 @@ func GetRankingStats(c *gin.Context) {
 			"success": true,
 			"message": "",
 			"data": gin.H{
-				"user_call_ranking":  data.UserCallRanking,
+				"user_call_ranking":  userCallRanking,
 				"ip_call_ranking":    ipRanking,
 				"user_token_ranking": data.UserTokenRanking,
 			},
@@ -242,9 +247,14 @@ func GetRankingStats(c *gin.Context) {
 	rankingCacheMu.Unlock()
 
 	// 非管理员时对IP进行脱敏
+	responseUserCallRanking := make([]model.UserCallRanking, len(userCallRanking))
+	copy(responseUserCallRanking, userCallRanking)
 	responseIPRanking := make([]model.IPCallRanking, len(ipCallRanking))
 	copy(responseIPRanking, ipCallRanking)
 	if !isAdmin {
+		for i := range responseUserCallRanking {
+			responseUserCallRanking[i].Ip = maskIPs(responseUserCallRanking[i].Ip)
+		}
 		for i := range responseIPRanking {
 			responseIPRanking[i].Ip = maskIP(responseIPRanking[i].Ip)
 		}
@@ -254,7 +264,7 @@ func GetRankingStats(c *gin.Context) {
 		"success": true,
 		"message": "",
 		"data": gin.H{
-			"user_call_ranking":  userCallRanking,
+			"user_call_ranking":  responseUserCallRanking,
 			"ip_call_ranking":    responseIPRanking,
 			"user_token_ranking": userTokenRanking,
 		},
@@ -272,4 +282,12 @@ func maskIP(ip string) string {
 		return ip[:4] + "****" + ip[len(ip)-4:]
 	}
 	return "****"
+}
+
+func maskIPs(ips string) string {
+	parts := strings.Split(ips, ",")
+	for i := range parts {
+		parts[i] = maskIP(strings.TrimSpace(parts[i]))
+	}
+	return strings.Join(parts, ",")
 }
