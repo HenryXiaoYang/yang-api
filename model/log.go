@@ -19,11 +19,11 @@ import (
 
 type Log struct {
 	Id               int    `json:"id" gorm:"index:idx_created_at_id,priority:1"`
-	UserId           int    `json:"user_id" gorm:"index"`
-	CreatedAt        int64  `json:"created_at" gorm:"bigint;index:idx_created_at_id,priority:2;index:idx_created_at_type"`
-	Type             int    `json:"type" gorm:"index:idx_created_at_type"`
+	UserId           int    `json:"user_id" gorm:"index;index:idx_logs_ranking,priority:3"`
+	CreatedAt        int64  `json:"created_at" gorm:"bigint;index:idx_created_at_id,priority:2;index:idx_created_at_type;index:idx_logs_ranking,priority:1"`
+	Type             int    `json:"type" gorm:"index:idx_created_at_type;index:idx_logs_ranking,priority:2"`
 	Content          string `json:"content"`
-	Username         string `json:"username" gorm:"index;index:index_username_model_name,priority:2;default:''"`
+	Username         string `json:"username" gorm:"index;index:index_username_model_name,priority:2;index:idx_logs_ranking,priority:4;default:''"`
 	TokenName        string `json:"token_name" gorm:"index;default:''"`
 	ModelName        string `json:"model_name" gorm:"index;index:index_username_model_name,priority:1;default:''"`
 	Quota            int    `json:"quota" gorm:"default:0"`
@@ -35,7 +35,7 @@ type Log struct {
 	ChannelName      string `json:"channel_name" gorm:"->"`
 	TokenId          int    `json:"token_id" gorm:"default:0;index"`
 	Group            string `json:"group" gorm:"index"`
-	Ip               string `json:"ip" gorm:"index;default:''"`
+	Ip               string `json:"ip" gorm:"index;index:idx_logs_ranking,priority:5;default:''"`
 	Other            string `json:"other"`
 }
 
@@ -420,11 +420,31 @@ type UserIPCountRanking struct {
 	Quota       int64  `json:"quota"`
 }
 
+type UserMinuteIPRanking struct {
+	Username    string `json:"username"`
+	DisplayName string `json:"display_name"`
+	MaxIpCount  int64  `json:"max_ip_count"`
+	MinuteTime  int64  `json:"minute_time"`
+	Ip          string `json:"ip"`
+}
+
+// UserAggregateRanking 合并用户维度的聚合数据，用于生成多个排名
+type UserAggregateRanking struct {
+	Username    string `json:"username"`
+	DisplayName string `json:"display_name"`
+	Ip          string `json:"ip"`
+	IpCount     int64  `json:"ip_count"`
+	Count       int64  `json:"count"`
+	Tokens      int64  `json:"tokens"`
+	Quota       int64  `json:"quota"`
+}
+
 type RankingData struct {
-	UserCallRanking    []UserCallRanking
-	IPCallRanking      []IPCallRanking
-	UserTokenRanking   []UserTokenRanking
-	UserIPCountRanking []UserIPCountRanking
+	UserCallRanking     []UserCallRanking
+	IPCallRanking       []IPCallRanking
+	UserTokenRanking    []UserTokenRanking
+	UserIPCountRanking  []UserIPCountRanking
+	UserMinuteIPRanking []UserMinuteIPRanking
 }
 
 func GetTodayUserCallRanking(limit int) ([]UserCallRanking, error) {
@@ -446,6 +466,28 @@ func GetTodayUserCallRanking(limit int) ([]UserCallRanking, error) {
 		Group("logs.username, users.display_name").
 		Order("count desc").
 		Limit(limit).
+		Scan(&rankings).Error
+	return rankings, err
+}
+
+// GetTodayUserAggregateRanking 合并查询：一次获取用户维度的所有聚合数据
+func GetTodayUserAggregateRanking() ([]UserAggregateRanking, error) {
+	now := time.Now()
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).Unix()
+	var rankings []UserAggregateRanking
+
+	var selectSQL string
+	if common.UsingPostgreSQL {
+		selectSQL = "logs.username, COALESCE(users.display_name, '') as display_name, string_agg(DISTINCT logs.ip, ',') as ip, COUNT(DISTINCT logs.ip) as ip_count, count(*) as count, sum(logs.prompt_tokens + logs.completion_tokens) as tokens, sum(logs.quota) as quota"
+	} else {
+		selectSQL = "logs.username, COALESCE(users.display_name, '') as display_name, GROUP_CONCAT(DISTINCT logs.ip) as ip, COUNT(DISTINCT logs.ip) as ip_count, count(*) as count, sum(logs.prompt_tokens + logs.completion_tokens) as tokens, sum(logs.quota) as quota"
+	}
+
+	err := LOG_DB.Table("logs").
+		Select(selectSQL).
+		Joins("LEFT JOIN users ON logs.username = users.username").
+		Where("logs.created_at >= ? AND logs.type = ? AND logs.user_id != 1", todayStart, LogTypeConsume).
+		Group("logs.username, users.display_name").
 		Scan(&rankings).Error
 	return rankings, err
 }
@@ -508,5 +550,35 @@ func GetTodayUserIPCountRanking(limit int) ([]UserIPCountRanking, error) {
 		Order("ip_count desc").
 		Limit(limit).
 		Scan(&rankings).Error
+	return rankings, err
+}
+
+func GetTodayUserMinuteIPRanking(limit int) ([]UserMinuteIPRanking, error) {
+	now := time.Now()
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).Unix()
+
+	var aggFunc, divOp string
+	if common.UsingPostgreSQL {
+		aggFunc = "string_agg(DISTINCT logs.ip, ',')"
+		divOp = "CAST(logs.created_at / 60 AS BIGINT)"
+	} else {
+		aggFunc = "GROUP_CONCAT(DISTINCT logs.ip)"
+		divOp = "(logs.created_at / 60)"
+	}
+
+	sql := `SELECT username, display_name, ip_count as max_ip_count, minute_time, ips as ip FROM (
+		SELECT logs.username, COALESCE(users.display_name, '') as display_name,
+			` + divOp + ` as minute_time,
+			COUNT(DISTINCT logs.ip) as ip_count,
+			` + aggFunc + ` as ips,
+			ROW_NUMBER() OVER (PARTITION BY logs.username ORDER BY COUNT(DISTINCT logs.ip) DESC, ` + divOp + ` DESC) as rn
+		FROM logs
+		LEFT JOIN users ON logs.username = users.username
+		WHERE logs.created_at >= ? AND logs.type = ? AND logs.ip != '' AND logs.user_id != 1
+		GROUP BY logs.username, users.display_name, ` + divOp + `
+	) sub WHERE rn = 1 ORDER BY max_ip_count DESC LIMIT ?`
+
+	var rankings []UserMinuteIPRanking
+	err := LOG_DB.Raw(sql, todayStart, LogTypeConsume, limit).Scan(&rankings).Error
 	return rankings, err
 }
