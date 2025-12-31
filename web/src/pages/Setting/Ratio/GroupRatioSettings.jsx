@@ -17,8 +17,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useEffect, useState, useRef } from 'react';
-import { Button, Col, Form, Row, Spin } from '@douyinfe/semi-ui';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
+import { Button, Col, Form, Row, Spin, Card, RadioGroup, Radio, Typography } from '@douyinfe/semi-ui';
 import {
   compareObjects,
   API,
@@ -28,10 +28,14 @@ import {
   verifyJSON,
 } from '../../../helpers';
 import { useTranslation } from 'react-i18next';
+import DynamicGroupRatioEditor from './DynamicGroupRatioEditor';
+
+const { Text } = Typography;
 
 export default function GroupRatioSettings(props) {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
+  const [ratioMode, setRatioMode] = useState('static'); // 'static' or 'dynamic'
   const [inputs, setInputs] = useState({
     GroupRatio: '',
     UserUsableGroups: '',
@@ -39,9 +43,70 @@ export default function GroupRatioSettings(props) {
     'group_ratio_setting.group_special_usable_group': '',
     AutoGroups: '',
     DefaultUseAutoGroup: false,
+    DynamicGroupRatioSetting: '',
   });
   const refForm = useRef();
   const [inputsRow, setInputsRow] = useState(inputs);
+
+  // Extract available groups from GroupRatio
+  const availableGroups = useMemo(() => {
+    try {
+      const parsed = JSON.parse(inputs.GroupRatio || '{}');
+      return Object.keys(parsed);
+    } catch (e) {
+      return [];
+    }
+  }, [inputs.GroupRatio]);
+
+  // Determine ratio mode from DynamicGroupRatioSetting
+  useEffect(() => {
+    try {
+      const dynamicConfig = JSON.parse(inputs.DynamicGroupRatioSetting || '{}');
+      if (dynamicConfig.enabled && dynamicConfig.mode && dynamicConfig.mode !== 'none') {
+        setRatioMode('dynamic');
+      } else {
+        setRatioMode('static');
+      }
+    } catch (e) {
+      setRatioMode('static');
+    }
+  }, [inputs.DynamicGroupRatioSetting]);
+
+  const handleRatioModeChange = (e) => {
+    const newMode = e.target.value;
+    setRatioMode(newMode);
+
+    // Update DynamicGroupRatioSetting based on mode
+    try {
+      const currentConfig = JSON.parse(inputs.DynamicGroupRatioSetting || '{}');
+      if (newMode === 'dynamic') {
+        currentConfig.enabled = true;
+        if (!currentConfig.mode || currentConfig.mode === 'none') {
+          currentConfig.mode = 'time';
+        }
+      } else {
+        currentConfig.enabled = false;
+      }
+      setInputs({ ...inputs, DynamicGroupRatioSetting: JSON.stringify(currentConfig, null, 2) });
+    } catch (e) {
+      if (newMode === 'dynamic') {
+        setInputs({
+          ...inputs,
+          DynamicGroupRatioSetting: JSON.stringify({
+            enabled: true,
+            mode: 'time',
+            rpm_window_minutes: 1,
+            group_configs: {},
+          }, null, 2),
+        });
+      } else {
+        setInputs({
+          ...inputs,
+          DynamicGroupRatioSetting: JSON.stringify({ enabled: false, mode: 'none' }, null, 2),
+        });
+      }
+    }
+  };
 
   async function onSubmit() {
     try {
@@ -98,9 +163,17 @@ export default function GroupRatioSettings(props) {
   }
 
   useEffect(() => {
-    const currentInputs = {};
+    const currentInputs = {
+      GroupRatio: '',
+      UserUsableGroups: '',
+      GroupGroupRatio: '',
+      'group_ratio_setting.group_special_usable_group': '',
+      AutoGroups: '',
+      DefaultUseAutoGroup: false,
+      DynamicGroupRatioSetting: '',
+    };
     for (let key in props.options) {
-      if (Object.keys(inputs).includes(key)) {
+      if (Object.keys(currentInputs).includes(key)) {
         currentInputs[key] = props.options[key];
       }
     }
@@ -116,28 +189,118 @@ export default function GroupRatioSettings(props) {
         getFormApi={(formAPI) => (refForm.current = formAPI)}
         style={{ marginBottom: 15 }}
       >
-        <Row gutter={16}>
-          <Col xs={24} sm={16}>
-            <Form.TextArea
-              label={t('分组倍率')}
-              placeholder={t('为一个 JSON 文本，键为分组名称，值为倍率')}
-              extraText={t(
-                '分组倍率设置，可以在此处新增分组或修改现有分组的倍率，格式为 JSON 字符串，例如：{"vip": 0.5, "test": 1}，表示 vip 分组的倍率为 0.5，test 分组的倍率为 1',
-              )}
-              field={'GroupRatio'}
-              autosize={{ minRows: 6, maxRows: 12 }}
-              trigger='blur'
-              stopValidateWithError
-              rules={[
-                {
-                  validator: (rule, value) => verifyJSON(value),
-                  message: t('不是合法的 JSON 字符串'),
-                },
-              ]}
-              onChange={(value) => setInputs({ ...inputs, GroupRatio: value })}
-            />
-          </Col>
-        </Row>
+        {/* Ratio Mode Switch */}
+        <Card style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 16 }}>
+            <Text strong style={{ marginRight: 16 }}>{t('分组倍率模式')}</Text>
+            <RadioGroup
+              type='button'
+              value={ratioMode}
+              onChange={handleRatioModeChange}
+            >
+              <Radio value='static'>{t('静态倍率')}</Radio>
+              <Radio value='dynamic'>{t('动态倍率')}</Radio>
+            </RadioGroup>
+          </div>
+          <Text type='tertiary'>
+            {ratioMode === 'static'
+              ? t('静态倍率：每个分组使用固定的倍率值')
+              : t('动态倍率：根据时间段或用户请求频率自动调整倍率')}
+          </Text>
+        </Card>
+
+        {/* Static Ratio Settings */}
+        {ratioMode === 'static' && (
+          <>
+            <Row gutter={16}>
+              <Col xs={24} sm={16}>
+                <Form.TextArea
+                  label={t('分组倍率')}
+                  placeholder={t('为一个 JSON 文本，键为分组名称，值为倍率')}
+                  extraText={t(
+                    '分组倍率设置，可以在此处新增分组或修改现有分组的倍率，格式为 JSON 字符串，例如：{"vip": 0.5, "test": 1}，表示 vip 分组的倍率为 0.5，test 分组的倍率为 1',
+                  )}
+                  field={'GroupRatio'}
+                  autosize={{ minRows: 6, maxRows: 12 }}
+                  trigger='blur'
+                  stopValidateWithError
+                  rules={[
+                    {
+                      validator: (rule, value) => verifyJSON(value),
+                      message: t('不是合法的 JSON 字符串'),
+                    },
+                  ]}
+                  onChange={(value) => setInputs({ ...inputs, GroupRatio: value })}
+                />
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col xs={24} sm={16}>
+                <Form.TextArea
+                  label={t('分组特殊倍率')}
+                  placeholder={t('为一个 JSON 文本')}
+                  extraText={t(
+                    '键为分组名称，值为另一个 JSON 对象，键为分组名称，值为该分组的用户的特殊分组倍率，例如：{"vip": {"default": 0.5, "test": 1}}，表示 vip 分组的用户在使用default分组的令牌时倍率为0.5，使用test分组时倍率为1',
+                  )}
+                  field={'GroupGroupRatio'}
+                  autosize={{ minRows: 6, maxRows: 12 }}
+                  trigger='blur'
+                  stopValidateWithError
+                  rules={[
+                    {
+                      validator: (rule, value) => verifyJSON(value),
+                      message: t('不是合法的 JSON 字符串'),
+                    },
+                  ]}
+                  onChange={(value) =>
+                    setInputs({ ...inputs, GroupGroupRatio: value })
+                  }
+                />
+              </Col>
+            </Row>
+          </>
+        )}
+
+        {/* Dynamic Ratio Settings */}
+        {ratioMode === 'dynamic' && (
+          <Card style={{ marginBottom: 16 }}>
+            <Row gutter={16}>
+              <Col xs={24} sm={16}>
+                <Form.TextArea
+                  label={t('分组倍率（用于定义可用分组）')}
+                  placeholder={t('为一个 JSON 文本，键为分组名称，值为倍率')}
+                  extraText={t(
+                    '定义可用的分组列表，动态倍率将基于这些分组进行配置。格式：{"default": 1, "vip": 1}',
+                  )}
+                  field={'GroupRatio'}
+                  autosize={{ minRows: 4, maxRows: 8 }}
+                  trigger='blur'
+                  stopValidateWithError
+                  rules={[
+                    {
+                      validator: (rule, value) => verifyJSON(value),
+                      message: t('不是合法的 JSON 字符串'),
+                    },
+                  ]}
+                  onChange={(value) => setInputs({ ...inputs, GroupRatio: value })}
+                />
+              </Col>
+            </Row>
+            <Row gutter={16} style={{ marginTop: 16 }}>
+              <Col xs={24} sm={20}>
+                <DynamicGroupRatioEditor
+                  value={inputs.DynamicGroupRatioSetting}
+                  onChange={(value) =>
+                    setInputs({ ...inputs, DynamicGroupRatioSetting: value })
+                  }
+                  availableGroups={availableGroups}
+                />
+              </Col>
+            </Row>
+          </Card>
+        )}
+
+        {/* Common Settings */}
         <Row gutter={16}>
           <Col xs={24} sm={16}>
             <Form.TextArea
@@ -158,30 +321,6 @@ export default function GroupRatioSettings(props) {
               ]}
               onChange={(value) =>
                 setInputs({ ...inputs, UserUsableGroups: value })
-              }
-            />
-          </Col>
-        </Row>
-        <Row gutter={16}>
-          <Col xs={24} sm={16}>
-            <Form.TextArea
-              label={t('分组特殊倍率')}
-              placeholder={t('为一个 JSON 文本')}
-              extraText={t(
-                '键为分组名称，值为另一个 JSON 对象，键为分组名称，值为该分组的用户的特殊分组倍率，例如：{"vip": {"default": 0.5, "test": 1}}，表示 vip 分组的用户在使用default分组的令牌时倍率为0.5，使用test分组时倍率为1',
-              )}
-              field={'GroupGroupRatio'}
-              autosize={{ minRows: 6, maxRows: 12 }}
-              trigger='blur'
-              stopValidateWithError
-              rules={[
-                {
-                  validator: (rule, value) => verifyJSON(value),
-                  message: t('不是合法的 JSON 字符串'),
-                },
-              ]}
-              onChange={(value) =>
-                setInputs({ ...inputs, GroupGroupRatio: value })
               }
             />
           </Col>

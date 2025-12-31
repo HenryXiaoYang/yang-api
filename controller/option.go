@@ -137,6 +137,15 @@ func UpdateOption(c *gin.Context) {
 			})
 			return
 		}
+	case "DynamicGroupRatioSetting":
+		err = ratio_setting.CheckDynamicGroupRatioSetting(option.Value.(string))
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "动态分组倍率设置失败: " + err.Error(),
+			})
+			return
+		}
 	case "ImageRatio":
 		err = ratio_setting.UpdateImageRatioByJSONString(option.Value.(string))
 		if err != nil {
