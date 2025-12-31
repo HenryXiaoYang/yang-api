@@ -32,16 +32,19 @@ func GetUserGroups(c *gin.Context) {
 	for groupName, _ := range ratio_setting.GetGroupRatioCopy() {
 		// UserUsableGroups contains the groups that the user can use
 		if desc, ok := userUsableGroups[groupName]; ok {
+			ratio, isDynamic := service.GetUserGroupRatioWithDynamic(userGroup, groupName)
 			usableGroups[groupName] = map[string]interface{}{
-				"ratio": service.GetUserGroupRatio(userGroup, groupName),
-				"desc":  desc,
+				"ratio":      ratio,
+				"desc":       desc,
+				"is_dynamic": isDynamic,
 			}
 		}
 	}
 	if _, ok := userUsableGroups["auto"]; ok {
 		usableGroups["auto"] = map[string]interface{}{
-			"ratio": "自动",
-			"desc":  setting.GetUsableGroupDescription("auto"),
+			"ratio":      "自动",
+			"desc":       setting.GetUsableGroupDescription("auto"),
+			"is_dynamic": false,
 		}
 	}
 	c.JSON(http.StatusOK, gin.H{

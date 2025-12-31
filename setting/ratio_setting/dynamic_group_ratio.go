@@ -1,7 +1,6 @@
 package ratio_setting
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -146,7 +145,7 @@ func CheckDynamicGroupRatioSetting(jsonStr string) error {
 
 // GetDynamicGroupRatio 获取动态分组倍率
 // 返回: (倍率, 是否使用动态倍率)
-func GetDynamicGroupRatio(ctx context.Context, groupName string, userId int) (float64, bool) {
+func GetDynamicGroupRatio(groupName string) (float64, bool) {
 	dynamicGroupRatioMutex.RLock()
 	setting := dynamicGroupRatioSetting
 	dynamicGroupRatioMutex.RUnlock()
@@ -164,7 +163,7 @@ func GetDynamicGroupRatio(ctx context.Context, groupName string, userId int) (fl
 	case DynamicRatioModeTime:
 		return calculateTimeBasedRatio(groupConfig.TimeRanges, setting.Timezone)
 	case DynamicRatioModeRPM:
-		return calculateRPMBasedRatio(ctx, groupConfig.RPMRanges, userId, setting.RPMWindowMinutes)
+		return calculateRPMBasedRatio(groupConfig.RPMRanges)
 	default:
 		return 0, false
 	}
@@ -200,13 +199,13 @@ func isHourInRange(hour, start, end int) bool {
 	return hour >= start || hour < end
 }
 
-// calculateRPMBasedRatio 计算基于RPM的倍率
-func calculateRPMBasedRatio(ctx context.Context, ranges []RPMRangeRatio, userId int, windowMinutes int) (float64, bool) {
+// calculateRPMBasedRatio 计算基于系统总RPM的倍率
+func calculateRPMBasedRatio(ranges []RPMRangeRatio) (float64, bool) {
 	if len(ranges) == 0 {
 		return 0, false
 	}
 
-	rpm := getUserCurrentRPM(ctx, userId, windowMinutes)
+	rpm := getSystemCurrentRPM()
 	for _, r := range ranges {
 		if rpm >= r.MinRPM && (r.MaxRPM == -1 || rpm < r.MaxRPM) {
 			return r.Ratio, true
@@ -215,38 +214,20 @@ func calculateRPMBasedRatio(ctx context.Context, ranges []RPMRangeRatio, userId 
 	return 0, false
 }
 
-// getUserCurrentRPM 获取用户当前RPM
-// 复用现有限流系统的 Redis key: rateLimit:MRRLS:{userId}
-func getUserCurrentRPM(ctx context.Context, userId int, windowMinutes int) int {
-	if !common.RedisEnabled || common.RDB == nil {
+// SystemRPMGetter 系统RPM获取函数类型
+type SystemRPMGetter func() int
+
+var systemRPMGetter SystemRPMGetter
+
+// SetSystemRPMGetter 设置系统RPM获取函数（由model包调用以避免循环导入）
+func SetSystemRPMGetter(getter SystemRPMGetter) {
+	systemRPMGetter = getter
+}
+
+// getSystemCurrentRPM 获取系统当前RPM（最近60秒的请求数）
+func getSystemCurrentRPM() int {
+	if systemRPMGetter == nil {
 		return 0
 	}
-
-	key := fmt.Sprintf("rateLimit:MRRLS:%d", userId)
-	windowDuration := time.Duration(windowMinutes) * time.Minute
-	cutoffTime := time.Now().Add(-windowDuration)
-
-	// 获取列表长度
-	length, err := common.RDB.LLen(ctx, key).Result()
-	if err != nil || length == 0 {
-		return 0
-	}
-
-	// 获取所有时间戳并统计在窗口内的数量
-	timestamps, err := common.RDB.LRange(ctx, key, 0, length-1).Result()
-	if err != nil {
-		return 0
-	}
-
-	count := 0
-	for _, ts := range timestamps {
-		t, err := time.Parse("2006-01-02 15:04:05", ts)
-		if err != nil {
-			continue
-		}
-		if t.After(cutoffTime) {
-			count++
-		}
-	}
-	return count
+	return systemRPMGetter()
 }
