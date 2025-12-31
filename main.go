@@ -300,6 +300,9 @@ func InitResources() error {
 		return err
 	}
 
+	// Initialize system RPM getter for dynamic group ratio
+	model.InitSystemRPMGetter()
+
 	// Initialize Redis
 	err = common.InitRedisClient()
 	if err != nil {

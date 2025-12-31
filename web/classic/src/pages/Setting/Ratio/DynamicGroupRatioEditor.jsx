@@ -138,7 +138,7 @@ export default function DynamicGroupRatioEditor({
           onChange={handleModeChange}
         >
           <Radio value='time'>{t('按时间段')}</Radio>
-          <Radio value='rpm'>{t('按用户RPM')}</Radio>
+          <Radio value='rpm'>{t('按用户总RPM')}</Radio>
         </RadioGroup>
       </div>
 

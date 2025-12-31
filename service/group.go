@@ -63,3 +63,15 @@ func GetUserGroupRatio(userGroup, group string) float64 {
 	}
 	return ratio_setting.GetGroupRatio(group)
 }
+
+// GetUserGroupRatioWithDynamic 获取用户使用某个分组的倍率（含动态倍率）
+// 返回: (倍率, 是否动态倍率)
+func GetUserGroupRatioWithDynamic(userGroup, group string) (float64, bool) {
+	// 1. 先检查动态倍率
+	dynamicRatio, useDynamic := ratio_setting.GetDynamicGroupRatio(group)
+	if useDynamic {
+		return dynamicRatio, true
+	}
+	// 2. 回退到静态倍率
+	return GetUserGroupRatio(userGroup, group), false
+}

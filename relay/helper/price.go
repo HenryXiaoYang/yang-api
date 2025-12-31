@@ -50,7 +50,7 @@ func HandleGroupRatio(ctx *gin.Context, relayInfo *relaycommon.RelayInfo) types.
 	}
 
 	// 1. check dynamic group ratio first (highest priority)
-	dynamicRatio, useDynamic := ratio_setting.GetDynamicGroupRatio(ctx, relayInfo.UsingGroup, relayInfo.UserId)
+	dynamicRatio, useDynamic := ratio_setting.GetDynamicGroupRatio(relayInfo.UsingGroup)
 	if useDynamic {
 		groupRatioInfo.GroupRatio = dynamicRatio
 		groupRatioInfo.IsDynamicRatio = true
