@@ -40,6 +40,7 @@ import {
 } from '@douyinfe/semi-icons';
 import { Link } from 'react-router-dom';
 import NoticeModal from '../../components/layout/NoticeModal';
+import YangApiHome from './YangApiHome';
 import {
   Moonshot,
   OpenAI,
@@ -71,6 +72,7 @@ const Home = () => {
   const actualTheme = useActualTheme();
   const [homePageContentLoaded, setHomePageContentLoaded] = useState(false);
   const [homePageContent, setHomePageContent] = useState('');
+  const [useYangApiHomePage, setUseYangApiHomePage] = useState(false);
   const [noticeVisible, setNoticeVisible] = useState(false);
   const isMobile = useIsMobile();
   const isDemoSiteMode = statusState?.status?.demo_site_enabled || false;
@@ -142,6 +144,23 @@ const Home = () => {
   }, []);
 
   useEffect(() => {
+    const fetchOptions = async () => {
+      try {
+        const res = await API.get('/api/option/');
+        if (res.data.success) {
+          const opt = res.data.data.find((o) => o.key === 'UseYangApiHomePage');
+          if (opt && opt.value === 'true') {
+            setUseYangApiHomePage(true);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to fetch options', e);
+      }
+    };
+    fetchOptions();
+  }, []);
+
+  useEffect(() => {
     const timer = setInterval(() => {
       setEndpointIndex((prev) => (prev + 1) % endpointItems.length);
     }, 3000);
@@ -155,7 +174,9 @@ const Home = () => {
         onClose={() => setNoticeVisible(false)}
         isMobile={isMobile}
       />
-      {homePageContentLoaded && homePageContent === '' ? (
+      {useYangApiHomePage ? (
+        <YangApiHome />
+      ) : homePageContentLoaded && homePageContent === '' ? (
         <div className='w-full overflow-x-hidden'>
           {/* Banner 部分 */}
           <div className='w-full border-b border-semi-color-border min-h-[500px] md:min-h-[600px] lg:min-h-[700px] relative overflow-x-hidden'>

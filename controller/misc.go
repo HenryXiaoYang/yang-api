@@ -12,6 +12,7 @@ import (
 	"github.com/QuantumNous/new-api/middleware"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/oauth"
+	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/console_setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
@@ -227,6 +228,19 @@ func GetHomePageContent(c *gin.Context) {
 		"data":    common.OptionMap["HomePageContent"],
 	})
 	return
+}
+
+func GetSystemStats(c *gin.Context) {
+	rpm := model.GetSystemRPM()
+	ratio, isDynamic := service.GetUserGroupRatioWithDynamic("default", "default")
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"rpm":           rpm,
+			"default_ratio": ratio,
+			"is_dynamic":    isDynamic,
+		},
+	})
 }
 
 func SendEmailVerification(c *gin.Context) {
