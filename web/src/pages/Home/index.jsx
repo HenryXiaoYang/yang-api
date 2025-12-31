@@ -144,20 +144,17 @@ const Home = () => {
   }, []);
 
   useEffect(() => {
-    const fetchOptions = async () => {
+    const fetchSystemStats = async () => {
       try {
-        const res = await API.get('/api/option/');
-        if (res.data.success) {
-          const opt = res.data.data.find((o) => o.key === 'UseYangApiHomePage');
-          if (opt && opt.value === 'true') {
-            setUseYangApiHomePage(true);
-          }
+        const res = await API.get('/api/system/stats');
+        if (res.data.success && res.data.data.use_yang_api_homepage) {
+          setUseYangApiHomePage(true);
         }
       } catch (e) {
-        console.error('Failed to fetch options', e);
+        console.error('Failed to fetch system stats', e);
       }
     };
-    fetchOptions();
+    fetchSystemStats();
   }, []);
 
   useEffect(() => {

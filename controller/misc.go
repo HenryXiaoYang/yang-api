@@ -201,12 +201,16 @@ func GetHomePageContent(c *gin.Context) {
 func GetSystemStats(c *gin.Context) {
 	rpm := model.GetSystemRPM()
 	ratio, isDynamic := service.GetUserGroupRatioWithDynamic("default", "default")
+	common.OptionMapRWMutex.RLock()
+	useYangApiHomePage := common.OptionMap["UseYangApiHomePage"] == "true"
+	common.OptionMapRWMutex.RUnlock()
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
-			"rpm":           rpm,
-			"default_ratio": ratio,
-			"is_dynamic":    isDynamic,
+			"rpm":                   rpm,
+			"default_ratio":         ratio,
+			"is_dynamic":            isDynamic,
+			"use_yang_api_homepage": useYangApiHomePage,
 		},
 	})
 }
