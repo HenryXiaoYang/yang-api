@@ -106,7 +106,7 @@ const YangApiHome = () => {
             {/* 倍率卡片 */}
             <Card className="!rounded-xl" bodyStyle={{ padding: '24px' }}>
               <div className="text-center">
-                <Text type="tertiary" className="!text-sm">{t('默认倍率')}</Text>
+                <Text type="tertiary" className="!text-sm">{t('倍率')}</Text>
                 <div className="my-4">
                   <span className="text-5xl font-bold text-semi-color-primary">x{stats.default_ratio}</span>
                   {stats.is_dynamic && (
