@@ -48,6 +48,7 @@ const OtherSetting = () => {
     Footer: '',
     About: '',
     HomePageContent: '',
+    UseYangApiHomePage: '',
   });
   let [loading, setLoading] = useState(false);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
@@ -440,7 +441,22 @@ const OtherSetting = () => {
               <Button onClick={submitLogo} loading={loadingInput['Logo']}>
                 {t('设置 Logo')}
               </Button>
-              <Form.TextArea
+              <Form.Switch
+                field={'UseYangApiHomePage'}
+                label={t('使用 yang-api 主页')}
+                size='default'
+                checkedText='｜'
+                uncheckedText='〇'
+                onChange={(v) => {
+                  setInputs((inputs) => ({ ...inputs, UseYangApiHomePage: v ? 'true' : 'false' }));
+                  updateOption('UseYangApiHomePage', v ? 'true' : 'false');
+                }}
+                checked={inputs.UseYangApiHomePage === 'true'}
+                helpText={t('开启后将使用内置的 yang-api 主页，显示 API 地址、系统状态和配置教程')}
+              />
+              {inputs.UseYangApiHomePage !== 'true' && (
+                <>
+                  <Form.TextArea
                 label={t('首页内容')}
                 placeholder={t(
                   '在此输入首页内容，支持 Markdown & HTML 代码，设置后首页的状态信息将不再显示。如果输入的是一个链接，则会使用该链接作为 iframe 的 src 属性，这允许你设置任意网页作为首页',
@@ -456,6 +472,8 @@ const OtherSetting = () => {
               >
                 {t('设置首页内容')}
               </Button>
+                </>
+              )}
               <Form.TextArea
                 label={t('关于')}
                 placeholder={t(
