@@ -30,7 +30,15 @@ func HandleGroupRatio(ctx *gin.Context, relayInfo *relaycommon.RelayInfo) types.
 		relayInfo.UsingGroup = autoGroup.(string)
 	}
 
-	// check user group special ratio
+	// 1. check dynamic group ratio first (highest priority)
+	dynamicRatio, useDynamic := ratio_setting.GetDynamicGroupRatio(relayInfo.UsingGroup)
+	if useDynamic {
+		groupRatioInfo.GroupRatio = dynamicRatio
+		groupRatioInfo.IsDynamicRatio = true
+		return groupRatioInfo
+	}
+
+	// 2. check user group special ratio
 	userGroupRatio, ok := ratio_setting.GetGroupGroupRatio(relayInfo.UserGroup, relayInfo.UsingGroup)
 	if ok {
 		// user group special ratio
@@ -38,7 +46,7 @@ func HandleGroupRatio(ctx *gin.Context, relayInfo *relaycommon.RelayInfo) types.
 		groupRatioInfo.GroupRatio = userGroupRatio
 		groupRatioInfo.HasSpecialRatio = true
 	} else {
-		// normal group ratio
+		// 3. normal group ratio
 		groupRatioInfo.GroupRatio = ratio_setting.GetGroupRatio(relayInfo.UsingGroup)
 	}
 

@@ -13,6 +13,7 @@ func GetPricing(c *gin.Context) {
 	userId, exists := c.Get("id")
 	usableGroup := map[string]string{}
 	groupRatio := map[string]float64{}
+	dynamicGroups := map[string]bool{}
 	for s, f := range ratio_setting.GetGroupRatioCopy() {
 		groupRatio[s] = f
 	}
@@ -22,10 +23,27 @@ func GetPricing(c *gin.Context) {
 		if err == nil {
 			group = user.Group
 			for g := range groupRatio {
-				ratio, ok := ratio_setting.GetGroupGroupRatio(group, g)
-				if ok {
-					groupRatio[g] = ratio
+				// 检查动态倍率
+				dynRatio, isDynamic := ratio_setting.GetDynamicGroupRatio(g)
+				if isDynamic {
+					groupRatio[g] = dynRatio
+					dynamicGroups[g] = true
+				} else {
+					// 检查用户分组特殊倍率
+					ratio, ok := ratio_setting.GetGroupGroupRatio(group, g)
+					if ok {
+						groupRatio[g] = ratio
+					}
 				}
+			}
+		}
+	} else {
+		// 未登录用户也检查动态倍率
+		for g := range groupRatio {
+			dynRatio, isDynamic := ratio_setting.GetDynamicGroupRatio(g)
+			if isDynamic {
+				groupRatio[g] = dynRatio
+				dynamicGroups[g] = true
 			}
 		}
 	}
@@ -35,6 +53,7 @@ func GetPricing(c *gin.Context) {
 	for group := range ratio_setting.GetGroupRatioCopy() {
 		if _, ok := usableGroup[group]; !ok {
 			delete(groupRatio, group)
+			delete(dynamicGroups, group)
 		}
 	}
 
@@ -43,6 +62,7 @@ func GetPricing(c *gin.Context) {
 		"data":               pricing,
 		"vendors":            model.GetVendors(),
 		"group_ratio":        groupRatio,
+		"dynamic_groups":     dynamicGroups,
 		"usable_group":       usableGroup,
 		"supported_endpoint": model.GetSupportedEndpointMap(),
 		"auto_groups":        service.GetUserAutoGroup(group),

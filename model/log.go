@@ -9,6 +9,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/logger"
+	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/QuantumNous/new-api/types"
 
 	"github.com/gin-gonic/gin"
@@ -340,6 +341,17 @@ func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelNa
 	rpmTpmQuery.Scan(&stat)
 
 	return stat
+}
+
+// GetSystemRPM 获取系统当前RPM（最近60秒的请求数）
+func GetSystemRPM() int {
+	stat := SumUsedQuota(LogTypeConsume, 0, 0, "", "", "", 0, "")
+	return stat.Rpm
+}
+
+// InitSystemRPMGetter 初始化系统RPM获取器
+func InitSystemRPMGetter() {
+	ratio_setting.SetSystemRPMGetter(GetSystemRPM)
 }
 
 func SumUsedToken(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string) (token int) {
