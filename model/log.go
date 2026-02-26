@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -436,10 +437,55 @@ func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelNa
 	return stat, nil
 }
 
-// GetSystemRPM 获取系统当前RPM（最近60秒的请求数）
+// rpmCache 存储缓存的 RPM 值
+type rpmCache struct {
+	rpm       int
+	updatedAt time.Time
+}
+
+// cachedRPM 使用 atomic.Value 存储 RPM 缓存，保证并发安全
+var cachedRPM atomic.Value
+
+// rpmCacheRefreshInterval 后台刷新间隔（建议 5-10 秒）
+const rpmCacheRefreshInterval = 5 * time.Second
+
+// InitRPMCache 初始化 RPM 缓存和后台刷新
+func InitRPMCache() {
+	// 立即执行一次查询，初始化缓存
+	refreshRPMCache()
+
+	// 启动后台刷新 goroutine
+	go func() {
+		ticker := time.NewTicker(rpmCacheRefreshInterval)
+		defer ticker.Stop()
+		for range ticker.C {
+			refreshRPMCache()
+		}
+	}()
+
+	common.SysLog("RPM cache initialized with refresh interval: " + rpmCacheRefreshInterval.String())
+}
+
+// refreshRPMCache 执行实际的数据库查询并更新缓存
+func refreshRPMCache() {
+	stat, err := SumUsedQuota(LogTypeConsume, 0, 0, "", "", "", 0, "")
+	if err != nil {
+		common.SysError("failed to refresh RPM cache: " + err.Error())
+		return
+	}
+	cachedRPM.Store(&rpmCache{
+		rpm:       stat.Rpm,
+		updatedAt: time.Now(),
+	})
+}
+
+// GetSystemRPM 获取系统当前RPM（从缓存读取，无数据库查询）
 func GetSystemRPM() int {
-	stat, _ := SumUsedQuota(LogTypeConsume, 0, 0, "", "", "", 0, "")
-	return stat.Rpm
+	if c, ok := cachedRPM.Load().(*rpmCache); ok && c != nil {
+		return c.rpm
+	}
+	// 缓存未初始化时的降级处理（仅启动时可能发生）
+	return 0
 }
 
 // InitSystemRPMGetter 初始化系统RPM获取器

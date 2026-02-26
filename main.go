@@ -282,6 +282,9 @@ func InitResources() error {
 		return err
 	}
 
+	// Initialize RPM cache for dynamic group ratio (must be before InitSystemRPMGetter)
+	model.InitRPMCache()
+
 	// Initialize system RPM getter for dynamic group ratio
 	model.InitSystemRPMGetter()
 
