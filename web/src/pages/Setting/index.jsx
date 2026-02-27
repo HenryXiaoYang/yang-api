@@ -34,6 +34,7 @@ import {
   CreditCard,
   Server,
   Activity,
+  Trophy,
 } from 'lucide-react';
 
 import SystemSetting from '../../components/settings/SystemSetting';
@@ -49,6 +50,7 @@ import DrawingSetting from '../../components/settings/DrawingSetting';
 import PaymentSetting from '../../components/settings/PaymentSetting';
 import ModelDeploymentSetting from '../../components/settings/ModelDeploymentSetting';
 import PerformanceSetting from '../../components/settings/PerformanceSetting';
+import RankingSetting from '../../components/settings/RankingSetting';
 
 const Setting = () => {
   const { t } = useTranslation();
@@ -157,6 +159,16 @@ const Setting = () => {
       ),
       content: <PerformanceSetting />,
       itemKey: 'performance',
+    });
+    panes.push({
+      tab: (
+        <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <Trophy size={18} />
+          {t('用户排名设置')}
+        </span>
+      ),
+      content: <RankingSetting />,
+      itemKey: 'ranking',
     });
     panes.push({
       tab: (

@@ -2739,6 +2739,16 @@
     "写": "Écriture",
     "根据 Anthropic 协定，/v1/messages 的输入 tokens 仅统计非缓存输入，不包含缓存读取与缓存写入 tokens。": "Selon la convention Anthropic, les tokens d'entrée de /v1/messages ne comptent que les entrées non mises en cache et excluent les tokens de lecture/écriture du cache.",
     "设计版本": "b80c3466cb6feafeb3990c7820e10e50",
-    "未匹配到模型，按回车键可将「{{name}}」作为自定义模型名添加": "Aucun modèle correspondant. Appuyez sur Entrée pour ajouter «{{name}}» comme nom de modèle personnalisé."
+    "未匹配到模型，按回车键可将「{{name}}」作为自定义模型名添加": "Aucun modèle correspondant. Appuyez sur Entrée pour ajouter «{{name}}» comme nom de modèle personnalisé.",
+    "用户排名设置": "Paramètres de classement des utilisateurs",
+    "用户排名过滤设置": "Paramètres de filtrage du classement des utilisateurs",
+    "配置用户排名页面显示的数据范围。可以限制只显示特定分组的数据，或排除某些用户。设置后将在约 5 分钟内生效（缓存刷新后）。": "Configurez la plage de données affichée sur la page de classement des utilisateurs. Vous pouvez limiter l'affichage à des groupes spécifiques ou exclure certains utilisateurs. Les paramètres prendront effet dans environ 5 minutes (après rafraîchissement du cache).",
+    "显示分组": "Groupes à afficher",
+    "选择要显示的分组，留空则显示全部": "Sélectionnez les groupes à afficher, laissez vide pour tout afficher",
+    "选择分组（留空显示全部）": "Sélectionner les groupes (vide = tout afficher)",
+    "排除用户名": "Exclure les noms d'utilisateur",
+    "输入要排除的用户名后回车": "Entrez le nom d'utilisateur à exclure et appuyez sur Entrée",
+    "输入要从排名中排除的用户名": "Entrez les noms d'utilisateur à exclure du classement",
+    "保存排名设置": "Enregistrer les paramètres de classement"
   }
 }

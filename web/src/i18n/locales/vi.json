@@ -3297,6 +3297,16 @@
     "写": "Ghi",
     "根据 Anthropic 协定，/v1/messages 的输入 tokens 仅统计非缓存输入，不包含缓存读取与缓存写入 tokens。": "Theo quy ước của Anthropic, input tokens của /v1/messages chỉ tính phần đầu vào không dùng cache và không bao gồm tokens đọc/ghi cache.",
     "设计版本": "b80c3466cb6feafeb3990c7820e10e50",
-    "未匹配到模型，按回车键可将「{{name}}」作为自定义模型名添加": "Không tìm thấy mô hình khớp. Nhấn Enter để thêm \"{{name}}\" làm tên mô hình tùy chỉnh."
+    "未匹配到模型，按回车键可将「{{name}}」作为自定义模型名添加": "Không tìm thấy mô hình khớp. Nhấn Enter để thêm \"{{name}}\" làm tên mô hình tùy chỉnh.",
+    "用户排名设置": "Cài đặt xếp hạng người dùng",
+    "用户排名过滤设置": "Cài đặt bộ lọc xếp hạng người dùng",
+    "配置用户排名页面显示的数据范围。可以限制只显示特定分组的数据，或排除某些用户。设置后将在约 5 分钟内生效（缓存刷新后）。": "Cấu hình phạm vi dữ liệu hiển thị trên trang xếp hạng người dùng. Bạn có thể giới hạn chỉ hiển thị các nhóm cụ thể hoặc loại trừ một số người dùng. Cài đặt sẽ có hiệu lực trong khoảng 5 phút (sau khi làm mới bộ nhớ cache).",
+    "显示分组": "Hiển thị nhóm",
+    "选择要显示的分组，留空则显示全部": "Chọn nhóm để hiển thị, để trống để hiển thị tất cả",
+    "选择分组（留空显示全部）": "Chọn nhóm (để trống = hiển thị tất cả)",
+    "排除用户名": "Loại trừ tên người dùng",
+    "输入要排除的用户名后回车": "Nhập tên người dùng cần loại trừ và nhấn Enter",
+    "输入要从排名中排除的用户名": "Nhập tên người dùng để loại trừ khỏi xếp hạng",
+    "保存排名设置": "Lưu cài đặt xếp hạng"
   }
 }

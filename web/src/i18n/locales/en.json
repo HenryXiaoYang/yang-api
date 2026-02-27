@@ -2837,6 +2837,16 @@
     "写": "Write",
     "根据 Anthropic 协定，/v1/messages 的输入 tokens 仅统计非缓存输入，不包含缓存读取与缓存写入 tokens。": "Per Anthropic conventions, /v1/messages input tokens count only non-cached input and exclude cache read/write tokens.",
     "设计版本": "b80c3466cb6feafeb3990c7820e10e50",
-    "未匹配到模型，按回车键可将「{{name}}」作为自定义模型名添加": "No matching models. Press Enter to add \"{{name}}\" as a custom model name."
+    "未匹配到模型，按回车键可将「{{name}}」作为自定义模型名添加": "No matching models. Press Enter to add \"{{name}}\" as a custom model name.",
+    "用户排名设置": "User Ranking Settings",
+    "用户排名过滤设置": "User Ranking Filter Settings",
+    "配置用户排名页面显示的数据范围。可以限制只显示特定分组的数据，或排除某些用户。设置后将在约 5 分钟内生效（缓存刷新后）。": "Configure the data range displayed on the user ranking page. You can limit to show only specific groups or exclude certain users. Settings will take effect within about 5 minutes (after cache refresh).",
+    "显示分组": "Display Groups",
+    "选择要显示的分组，留空则显示全部": "Select groups to display, leave empty to show all",
+    "选择分组（留空显示全部）": "Select groups (leave empty to show all)",
+    "排除用户名": "Exclude Usernames",
+    "输入要排除的用户名后回车": "Enter username to exclude and press Enter",
+    "输入要从排名中排除的用户名": "Enter usernames to exclude from ranking",
+    "保存排名设置": "Save Ranking Settings"
   }
 }
