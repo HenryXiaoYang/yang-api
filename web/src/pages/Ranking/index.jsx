@@ -21,7 +21,7 @@ import React, { useState, useEffect } from 'react';
 import { Table, Typography, Spin, Avatar, Tag, Tabs, TabPane } from '@douyinfe/semi-ui';
 import { useTranslation } from 'react-i18next';
 import { API, showError, renderQuota } from '../../helpers';
-import { Trophy, Users, Globe, Coins, Network, Clock } from 'lucide-react';
+import { Trophy, Users, Globe, Coins, Network, Clock, Wallet } from 'lucide-react';
 
 const medalColors = {
   gold: { border: '#FFD700', shadow: '0 0 12px #FFD700', text: '#B8860B' },
@@ -61,6 +61,7 @@ const Ranking = () => {
   const [userTokenRanking, setUserTokenRanking] = useState([]);
   const [userIPCountRanking, setUserIPCountRanking] = useState([]);
   const [userMinuteIPRanking, setUserMinuteIPRanking] = useState([]);
+  const [userQuotaRanking, setUserQuotaRanking] = useState([]);
 
   const loadRankingData = async () => {
     setLoading(true);
@@ -72,6 +73,7 @@ const Ranking = () => {
         setUserTokenRanking(res.data.data.user_token_ranking || []);
         setUserIPCountRanking(res.data.data.user_ip_count_ranking || []);
         setUserMinuteIPRanking(res.data.data.user_minute_ip_ranking || []);
+        setUserQuotaRanking(res.data.data.user_quota_ranking || []);
       } else {
         showError(res.data.message);
       }
@@ -179,6 +181,13 @@ const Ranking = () => {
     { title: 'IP', dataIndex: 'ip', render: renderIPs },
   ];
 
+  const userQuotaColumns = [
+    { title: t('排名'), dataIndex: 'rank', width: 60, render: renderRank },
+    { title: t('用户名'), dataIndex: 'username', render: renderUserWithAvatar },
+    { title: t('剩余余额'), dataIndex: 'quota', align: 'right', render: (quota) => renderQuota(quota, 2) },
+    { title: t('已使用额度'), dataIndex: 'used_quota', align: 'right', render: (quota) => renderQuota(quota, 2) },
+  ];
+
   return (
     <div className='mt-[60px] px-2'>
       <div className='mb-4'>
@@ -254,6 +263,19 @@ const Ranking = () => {
             <Table
               columns={userMinuteIPColumns}
               dataSource={userMinuteIPRanking}
+              pagination={false}
+              size='small'
+              empty={t('暂无数据')}
+              rowKey='username'
+            />
+          </TabPane>
+          <TabPane
+            tab={<span className='flex items-center gap-1'><Wallet size={16} />{t('余额排名')}</span>}
+            itemKey='userQuota'
+          >
+            <Table
+              columns={userQuotaColumns}
+              dataSource={userQuotaRanking}
               pagination={false}
               size='small'
               empty={t('暂无数据')}
