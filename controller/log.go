@@ -10,6 +10,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/setting/ranking_setting"
 
 	"github.com/gin-gonic/gin"
 )
@@ -186,6 +187,10 @@ func GetRankingStats(c *gin.Context) {
 	now := common.GetTimestamp()
 	today := time.Now().Day()
 
+	// 获取排名过滤设置
+	groups := ranking_setting.GetRankingGroups()
+	excludeUsernames := ranking_setting.GetRankingExcludeUsernames()
+
 	// 检查缓存是否有效（5分钟且同一天）
 	rankingCacheMu.RLock()
 	if rankingCache != nil && now-rankingCacheTime < 300 && rankingCacheDay == today {
@@ -243,15 +248,15 @@ func GetRankingStats(c *gin.Context) {
 	wg.Add(3)
 	go func() {
 		defer wg.Done()
-		userAggregateRanking, err1 = model.GetTodayUserAggregateRanking()
+		userAggregateRanking, err1 = model.GetTodayUserAggregateRanking(groups, excludeUsernames)
 	}()
 	go func() {
 		defer wg.Done()
-		ipCallRanking, err2 = model.GetTodayIPCallRanking(limit)
+		ipCallRanking, err2 = model.GetTodayIPCallRanking(limit, groups, excludeUsernames)
 	}()
 	go func() {
 		defer wg.Done()
-		userMinuteIPRanking, err3 = model.GetTodayUserMinuteIPRanking(limit)
+		userMinuteIPRanking, err3 = model.GetTodayUserMinuteIPRanking(limit, groups, excludeUsernames)
 	}()
 	wg.Wait()
 
