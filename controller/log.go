@@ -230,6 +230,7 @@ func GetRankingStats(c *gin.Context) {
 				"user_token_ranking":     data.UserTokenRanking,
 				"user_ip_count_ranking":  userIPCountRanking,
 				"user_minute_ip_ranking": userMinuteIPRanking,
+				"user_quota_ranking":     data.UserQuotaRanking,
 			},
 		})
 		return
@@ -238,14 +239,15 @@ func GetRankingStats(c *gin.Context) {
 
 	limit := 100
 	var (
-		userAggregateRanking []model.UserAggregateRanking
-		ipCallRanking        []model.IPCallRanking
-		userMinuteIPRanking  []model.UserMinuteIPRanking
-		err1, err2, err3     error
-		wg                   sync.WaitGroup
+		userAggregateRanking   []model.UserAggregateRanking
+		ipCallRanking          []model.IPCallRanking
+		userMinuteIPRanking    []model.UserMinuteIPRanking
+		userQuotaRanking       []model.UserQuotaRanking
+		err1, err2, err3, err4 error
+		wg                     sync.WaitGroup
 	)
 
-	wg.Add(3)
+	wg.Add(4)
 	go func() {
 		defer wg.Done()
 		userAggregateRanking, err1 = model.GetTodayUserAggregateRanking(groups, excludeUsernames)
@@ -257,6 +259,10 @@ func GetRankingStats(c *gin.Context) {
 	go func() {
 		defer wg.Done()
 		userMinuteIPRanking, err3 = model.GetTodayUserMinuteIPRanking(limit, groups, excludeUsernames)
+	}()
+	go func() {
+		defer wg.Done()
+		userQuotaRanking, err4 = model.GetUserQuotaRanking(limit, groups, excludeUsernames)
 	}()
 	wg.Wait()
 
@@ -270,6 +276,10 @@ func GetRankingStats(c *gin.Context) {
 	}
 	if err3 != nil {
 		common.ApiError(c, err3)
+		return
+	}
+	if err4 != nil {
+		common.ApiError(c, err4)
 		return
 	}
 
@@ -286,6 +296,7 @@ func GetRankingStats(c *gin.Context) {
 		UserTokenRanking:    userTokenRanking,
 		UserIPCountRanking:  userIPCountRanking,
 		UserMinuteIPRanking: userMinuteIPRanking,
+		UserQuotaRanking:    userQuotaRanking,
 	}
 	rankingCacheTime = now
 	rankingCacheDay = today
@@ -324,6 +335,7 @@ func GetRankingStats(c *gin.Context) {
 			"user_token_ranking":     userTokenRanking,
 			"user_ip_count_ranking":  responseUserIPCountRanking,
 			"user_minute_ip_ranking": responseUserMinuteIPRanking,
+			"user_quota_ranking":     userQuotaRanking,
 		},
 	})
 }

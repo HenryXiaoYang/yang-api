@@ -2847,6 +2847,9 @@
     "排除用户名": "Exclude Usernames",
     "输入要排除的用户名后回车": "Enter username to exclude and press Enter",
     "输入要从排名中排除的用户名": "Enter usernames to exclude from ranking",
-    "保存排名设置": "Save Ranking Settings"
+    "保存排名设置": "Save Ranking Settings",
+    "余额排名": "Balance Ranking",
+    "剩余余额": "Remaining Balance",
+    "已使用额度": "Used Quota"
   }
 }

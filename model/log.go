@@ -566,12 +566,20 @@ type UserAggregateRanking struct {
 	Quota       int64  `json:"quota"`
 }
 
+type UserQuotaRanking struct {
+	Username    string `json:"username"`
+	DisplayName string `json:"display_name"`
+	Quota       int64  `json:"quota"`
+	UsedQuota   int64  `json:"used_quota"`
+}
+
 type RankingData struct {
 	UserCallRanking     []UserCallRanking
 	IPCallRanking       []IPCallRanking
 	UserTokenRanking    []UserTokenRanking
 	UserIPCountRanking  []UserIPCountRanking
 	UserMinuteIPRanking []UserMinuteIPRanking
+	UserQuotaRanking    []UserQuotaRanking
 }
 
 func GetTodayUserCallRanking(limit int) ([]UserCallRanking, error) {
@@ -755,5 +763,29 @@ func GetTodayUserMinuteIPRanking(limit int, groups []string, excludeUsernames []
 
 	var rankings []UserMinuteIPRanking
 	err := LOG_DB.Raw(sql, whereArgs...).Scan(&rankings).Error
+	return rankings, err
+}
+
+// GetUserQuotaRanking 获取用户余额排名
+// groups: 仅包含这些分组的数据（空数组表示不过滤）
+// excludeUsernames: 排除这些用户名的数据
+func GetUserQuotaRanking(limit int, groups []string, excludeUsernames []string) ([]UserQuotaRanking, error) {
+	var rankings []UserQuotaRanking
+
+	tx := DB.Table("users").
+		Select("username, display_name, quota, used_quota").
+		Where("status = ? AND role < ?", common.UserStatusEnabled, common.RoleAdminUser)
+
+	// Group 过滤
+	if len(groups) > 0 {
+		tx = tx.Where(commonGroupCol+" IN ?", groups)
+	}
+
+	// Username 过滤
+	if len(excludeUsernames) > 0 {
+		tx = tx.Where("username NOT IN ?", excludeUsernames)
+	}
+
+	err := tx.Order("quota desc").Limit(limit).Scan(&rankings).Error
 	return rankings, err
 }
