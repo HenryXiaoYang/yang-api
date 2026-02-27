@@ -651,7 +651,9 @@ func GetTodayUserCallRanking(limit int) ([]UserCallRanking, error) {
 }
 
 // GetTodayUserAggregateRanking 合并查询：一次获取用户维度的所有聚合数据
-func GetTodayUserAggregateRanking() ([]UserAggregateRanking, error) {
+// groups: 仅包含这些分组的数据（空数组表示不过滤）
+// excludeUsernames: 排除这些用户名的数据
+func GetTodayUserAggregateRanking(groups []string, excludeUsernames []string) ([]UserAggregateRanking, error) {
 	now := time.Now()
 	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).Unix()
 	var rankings []UserAggregateRanking
@@ -663,16 +665,30 @@ func GetTodayUserAggregateRanking() ([]UserAggregateRanking, error) {
 		selectSQL = "logs.username, COALESCE(users.display_name, '') as display_name, GROUP_CONCAT(DISTINCT logs.ip) as ip, COUNT(DISTINCT logs.ip) as ip_count, count(*) as count, sum(logs.prompt_tokens + logs.completion_tokens) as tokens, sum(logs.quota) as quota"
 	}
 
-	err := LOG_DB.Table("logs").
+	tx := LOG_DB.Table("logs").
 		Select(selectSQL).
 		Joins("LEFT JOIN users ON logs.username = users.username").
-		Where("logs.created_at >= ? AND logs.type = ? AND logs.user_id != 1", todayStart, LogTypeConsume).
-		Group("logs.username, users.display_name").
+		Where("logs.created_at >= ? AND logs.type = ? AND logs.user_id != 1", todayStart, LogTypeConsume)
+
+	// Group 过滤
+	if len(groups) > 0 {
+		tx = tx.Where("logs."+logGroupCol+" IN ?", groups)
+	}
+
+	// Username 过滤
+	if len(excludeUsernames) > 0 {
+		tx = tx.Where("logs.username NOT IN ?", excludeUsernames)
+	}
+
+	err := tx.Group("logs.username, users.display_name").
 		Scan(&rankings).Error
 	return rankings, err
 }
 
-func GetTodayIPCallRanking(limit int) ([]IPCallRanking, error) {
+// GetTodayIPCallRanking 获取今日 IP 调用排名
+// groups: 仅包含这些分组的数据（空数组表示不过滤）
+// excludeUsernames: 排除这些用户名的数据
+func GetTodayIPCallRanking(limit int, groups []string, excludeUsernames []string) ([]IPCallRanking, error) {
 	now := time.Now()
 	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).Unix()
 	var rankings []IPCallRanking
@@ -684,11 +700,22 @@ func GetTodayIPCallRanking(limit int) ([]IPCallRanking, error) {
 		selectSQL = "logs.ip, GROUP_CONCAT(DISTINCT logs.username) as username, GROUP_CONCAT(DISTINCT COALESCE(users.display_name, '')) as display_name, COUNT(DISTINCT logs.username) as user_count, count(*) as count"
 	}
 
-	err := LOG_DB.Table("logs").
+	tx := LOG_DB.Table("logs").
 		Select(selectSQL).
 		Joins("LEFT JOIN users ON logs.username = users.username").
-		Where("logs.created_at >= ? AND logs.type = ? AND logs.ip != '' AND logs.user_id != 1", todayStart, LogTypeConsume).
-		Group("logs.ip").
+		Where("logs.created_at >= ? AND logs.type = ? AND logs.ip != '' AND logs.user_id != 1", todayStart, LogTypeConsume)
+
+	// Group 过滤
+	if len(groups) > 0 {
+		tx = tx.Where("logs."+logGroupCol+" IN ?", groups)
+	}
+
+	// Username 过滤
+	if len(excludeUsernames) > 0 {
+		tx = tx.Where("logs.username NOT IN ?", excludeUsernames)
+	}
+
+	err := tx.Group("logs.ip").
 		Order("count desc").
 		Limit(limit).
 		Scan(&rankings).Error
@@ -733,7 +760,10 @@ func GetTodayUserIPCountRanking(limit int) ([]UserIPCountRanking, error) {
 	return rankings, err
 }
 
-func GetTodayUserMinuteIPRanking(limit int) ([]UserMinuteIPRanking, error) {
+// GetTodayUserMinuteIPRanking 获取今日用户分钟级 IP 排名
+// groups: 仅包含这些分组的数据（空数组表示不过滤）
+// excludeUsernames: 排除这些用户名的数据
+func GetTodayUserMinuteIPRanking(limit int, groups []string, excludeUsernames []string) ([]UserMinuteIPRanking, error) {
 	now := time.Now()
 	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).Unix()
 
@@ -746,6 +776,22 @@ func GetTodayUserMinuteIPRanking(limit int) ([]UserMinuteIPRanking, error) {
 		divOp = "(logs.created_at / 60)"
 	}
 
+	// 构建基础 WHERE 条件
+	whereClause := "logs.created_at >= ? AND logs.type = ? AND logs.ip != '' AND logs.user_id != 1"
+	whereArgs := []interface{}{todayStart, LogTypeConsume}
+
+	// Group 过滤
+	if len(groups) > 0 {
+		whereClause += " AND logs." + logGroupCol + " IN ?"
+		whereArgs = append(whereArgs, groups)
+	}
+
+	// Username 过滤
+	if len(excludeUsernames) > 0 {
+		whereClause += " AND logs.username NOT IN ?"
+		whereArgs = append(whereArgs, excludeUsernames)
+	}
+
 	sql := `SELECT username, display_name, ip_count as max_ip_count, minute_time, ips as ip FROM (
 		SELECT logs.username, COALESCE(users.display_name, '') as display_name,
 			` + divOp + ` as minute_time,
@@ -754,11 +800,13 @@ func GetTodayUserMinuteIPRanking(limit int) ([]UserMinuteIPRanking, error) {
 			ROW_NUMBER() OVER (PARTITION BY logs.username ORDER BY COUNT(DISTINCT logs.ip) DESC, ` + divOp + ` DESC) as rn
 		FROM logs
 		LEFT JOIN users ON logs.username = users.username
-		WHERE logs.created_at >= ? AND logs.type = ? AND logs.ip != '' AND logs.user_id != 1
+		WHERE ` + whereClause + `
 		GROUP BY logs.username, users.display_name, ` + divOp + `
 	) sub WHERE rn = 1 ORDER BY max_ip_count DESC LIMIT ?`
 
+	whereArgs = append(whereArgs, limit)
+
 	var rankings []UserMinuteIPRanking
-	err := LOG_DB.Raw(sql, todayStart, LogTypeConsume, limit).Scan(&rankings).Error
+	err := LOG_DB.Raw(sql, whereArgs...).Scan(&rankings).Error
 	return rankings, err
 }
