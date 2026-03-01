@@ -39,6 +39,7 @@ const UserControlSetting = () => {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [inputs, setInputs] = useState({
+    user_control_enabled: 'false',
     rapid_switch_threshold: '3',
     rapid_switch_duration: '300',
     hopping_threshold: '3',
@@ -117,6 +118,21 @@ const UserControlSetting = () => {
           style={{ marginBottom: 15 }}
         >
           <Form.Section text={t('用户封控设置')}>
+            <Form.Switch
+              field='user_control_enabled'
+              label={t('启用用户封控功能')}
+              checkedText='｜'
+              uncheckedText='〇'
+              checked={inputs.user_control_enabled === 'true'}
+              onChange={(value) =>
+                setInputs((prev) => ({
+                  ...prev,
+                  user_control_enabled: value ? 'true' : 'false',
+                }))
+              }
+              helpText={t('关闭后仍会采集 TLS 指纹数据，但封控功能不会生效')}
+              style={{ marginBottom: 8 }}
+            />
             <Banner
               type='info'
               description={t(

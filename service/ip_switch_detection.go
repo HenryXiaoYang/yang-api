@@ -17,6 +17,8 @@ const (
 	IPRiskRapidSwitch = "IP_RAPID_SWITCH"
 	IPRiskHopping     = "IP_HOPPING"
 
+	userControlEnabledOptionKey = "user_control_enabled"
+
 	defaultRapidSwitchThreshold = 3
 	defaultRapidSwitchDuration  = 300
 	defaultHoppingThreshold     = 3
@@ -56,6 +58,12 @@ func GetIPSwitchDetectionConfig() IPSwitchDetectionConfig {
 		HoppingThreshold:     parsePositiveOptionInt("hopping_threshold", defaultHoppingThreshold),
 		HoppingDuration:      parsePositiveOptionInt("hopping_duration", defaultHoppingDuration),
 	}
+}
+
+func IsUserControlEnabled() bool {
+	common.OptionMapRWMutex.RLock()
+	defer common.OptionMapRWMutex.RUnlock()
+	return strings.TrimSpace(common.OptionMap[userControlEnabledOptionKey]) == "true"
 }
 
 func TrackUserIPAccess(c *gin.Context, userId int) {
