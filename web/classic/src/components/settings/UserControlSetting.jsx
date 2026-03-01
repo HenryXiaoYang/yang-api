@@ -64,6 +64,7 @@ const UserControlSetting = () => {
     rapid_switch_duration: '300',
     hopping_threshold: '3',
     hopping_duration: '30',
+    ip_filter_cidr_list: '',
   });
   const [inputsRow, setInputsRow] = useState(inputs);
   const refForm = useRef();
@@ -282,6 +283,23 @@ const UserControlSetting = () => {
                     setInputs((prev) => ({
                       ...prev,
                       hopping_duration: toStringValue(value),
+                    }))
+                  }
+                />
+              </Col>
+            </Row>
+            <Row gutter={16} style={{ marginTop: 16 }}>
+              <Col xs={24} sm={24} md={24} lg={16} xl={12}>
+                <Form.TextArea
+                  field='ip_filter_cidr_list'
+                  label={t('额外过滤 IP 网段')}
+                  placeholder='192.168.100.0/24, 10.0.0.0/8'
+                  extraText={t('逗号分隔的 CIDR 列表，这些网段的 IP 不参与风控分析。系统已默认过滤本地/内网 IP 及 Docker 常用网段 (172.17-20.0.0/16)')}
+                  rows={2}
+                  onChange={(value) =>
+                    setInputs((prev) => ({
+                      ...prev,
+                      ip_filter_cidr_list: toStringValue(value),
                     }))
                   }
                 />

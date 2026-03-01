@@ -77,3 +77,11 @@ func DeleteAllUserIPAccessLogs() (int64, error) {
 	result := DB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&UserIPAccessLog{})
 	return result.RowsAffected, result.Error
 }
+
+func DeleteUserIPAccessLogsByUserIds(userIds []int) (int64, error) {
+	if len(userIds) == 0 {
+		return 0, nil
+	}
+	result := DB.Where("user_id IN ?", userIds).Delete(&UserIPAccessLog{})
+	return result.RowsAffected, result.Error
+}

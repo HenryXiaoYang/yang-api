@@ -26,6 +26,7 @@ import {
   Popover,
   Select,
   Space,
+  Spin,
   Table,
   Tag,
   Tooltip,
@@ -75,6 +76,8 @@ const UserControl = () => {
   const [featureEnabled, setFeatureEnabled] = useState(true);
   const [logModalVisible, setLogModalVisible] = useState(false);
   const [logModalData, setLogModalData] = useState({ username: '', logs: [] });
+  const [logLoading, setLogLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const loadUsers = async (
     page = activePage,
@@ -219,14 +222,78 @@ const UserControl = () => {
     await loadUsers(activePage, pageSize, keyword, riskType);
   };
 
+  const handleDeleteRiskControl = async (userIds) => {
+    if (!userIds || userIds.length === 0) {
+      return;
+    }
+
+    Modal.confirm({
+      title: t('确认删除'),
+      content: t('确定要删除所选用户的风控记录吗？删除后这些用户将从风控列表中移除。'),
+      okType: 'danger',
+      onOk: async () => {
+        setDeleteLoading(true);
+        try {
+          const res = await API.delete('/api/user/risk-control', {
+            data: { ids: userIds },
+          });
+          const { success, message } = res.data;
+          if (!success) {
+            showError(message || t('删除失败'));
+            return;
+          }
+          showSuccess(t('删除成功'));
+          await loadUsers(activePage, pageSize, keyword, riskType);
+        } catch (error) {
+          showError(error.message || t('删除失败'));
+        } finally {
+          setDeleteLoading(false);
+        }
+      },
+    });
+  };
+
+  const handleBatchDeleteRiskControl = async () => {
+    if (selectedRowKeys.length === 0) {
+      return;
+    }
+    const targetUserIds = users
+      .filter((item) => selectedRowKeys.includes(item.id) && !item.deleted)
+      .map((item) => item.id);
+    if (targetUserIds.length === 0) {
+      showError(t('没有可删除的记录'));
+      return;
+    }
+    await handleDeleteRiskControl(targetUserIds);
+  };
+
   const rowSelection = {
     selectedRowKeys,
     onChange: (keys) => {
       setSelectedRowKeys(keys);
     },
     getCheckboxProps: (record) => ({
-      disabled: !featureEnabled || record.deleted || record.status !== 1,
+      disabled: !featureEnabled || record.deleted,
     }),
+  };
+
+  const loadUserIPLogs = async (userId, username) => {
+    setLogModalData({ username, logs: [] });
+    setLogModalVisible(true);
+    setLogLoading(true);
+    try {
+      const res = await API.get(`/api/user/risk-control/${userId}/ip-logs`);
+      const { success, data, message } = res.data;
+      if (!success) {
+        showError(message || t('加载失败'));
+        return;
+      }
+      setLogModalData({ username, logs: data || [] });
+    } catch (error) {
+      showError(error.message || t('加载失败'));
+    } finally {
+      setLogLoading(false);
+    }
   };
 
   const renderStatus = (record) => {
@@ -256,6 +323,11 @@ const UserControl = () => {
         render: (text) => (
           <Text type='tertiary'>{text || '-'}</Text>
         ),
+      },
+      {
+        title: 'LinuxDO ID',
+        dataIndex: 'linux_do_id',
+        render: (text) => <Text type='tertiary'>{text || '-'}</Text>,
       },
       {
         title: t('状态'),
@@ -342,23 +414,17 @@ const UserControl = () => {
         title: t('风险详情'),
         dataIndex: 'ip_logs',
         render: (_, record) => {
-          const ipLogs = record.ip_logs || [];
-          if (!ipLogs.length) {
+          const ipList = record.ip_list || [];
+          if (!ipList.length) {
             return <Text type='tertiary'>-</Text>;
           }
           return (
             <Button
               size='small'
               theme='borderless'
-              onClick={() => {
-                setLogModalData({
-                  username: record.username,
-                  logs: ipLogs,
-                });
-                setLogModalVisible(true);
-              }}
+              onClick={() => loadUserIPLogs(record.id, record.username)}
             >
-              {t('查看日志')} ({ipLogs.length})
+              {t('查看日志')}
             </Button>
           );
         },
@@ -367,14 +433,24 @@ const UserControl = () => {
         title: '',
         dataIndex: 'operate',
         render: (_, record) => (
-          <Button
-            type={record.status === 1 ? 'danger' : 'secondary'}
-            size='small'
-            disabled={!featureEnabled || record.deleted}
-            onClick={() => handleSingleControl(record)}
-          >
-            {record.status === 1 ? t('禁用') : t('启用')}
-          </Button>
+          <Space>
+            <Button
+              type={record.status === 1 ? 'danger' : 'secondary'}
+              size='small'
+              disabled={!featureEnabled || record.deleted}
+              onClick={() => handleSingleControl(record)}
+            >
+              {record.status === 1 ? t('禁用') : t('启用')}
+            </Button>
+            <Button
+              type='tertiary'
+              size='small'
+              disabled={!featureEnabled || record.deleted}
+              onClick={() => handleDeleteRiskControl([record.id])}
+            >
+              {t('删除')}
+            </Button>
+          </Space>
         ),
       },
     ],
@@ -438,14 +514,24 @@ const UserControl = () => {
                 {t('重置')}
               </Button>
             </Space>
-            <Button
-              type='danger'
-              loading={batchLoading}
-              disabled={!featureEnabled || selectedRowKeys.length === 0}
-              onClick={handleBatchDisable}
-            >
-              {t('批量禁用账号')} ({selectedRowKeys.length})
-            </Button>
+            <Space>
+              <Button
+                type='danger'
+                loading={batchLoading}
+                disabled={!featureEnabled || selectedRowKeys.length === 0}
+                onClick={handleBatchDisable}
+              >
+                {t('批量禁用账号')} ({selectedRowKeys.length})
+              </Button>
+              <Button
+                type='tertiary'
+                loading={deleteLoading}
+                disabled={!featureEnabled || selectedRowKeys.length === 0}
+                onClick={handleBatchDeleteRiskControl}
+              >
+                {t('批量删除风控')} ({selectedRowKeys.length})
+              </Button>
+            </Space>
           </div>
         }
         paginationArea={createCardProPagination({
@@ -504,31 +590,37 @@ const UserControl = () => {
         width={700}
         bodyStyle={{ maxHeight: '60vh', overflow: 'auto' }}
       >
-        <Table
-          dataSource={logModalData.logs.map((log, idx) => ({
-            ...log,
-            key: idx,
-          }))}
-          columns={[
-            {
-              title: 'IP',
-              dataIndex: 'ip',
-              render: (text) => <Tag>{text}</Tag>,
-            },
-            {
-              title: t('首次出现'),
-              dataIndex: 'first_seen',
-              render: (text) => timestamp2string(text),
-            },
-            {
-              title: t('最后出现'),
-              dataIndex: 'last_seen',
-              render: (text) => timestamp2string(text),
-            },
-          ]}
-          pagination={false}
-          size='small'
-        />
+        {logLoading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: 40 }}>
+            <Spin size='large' />
+          </div>
+        ) : (
+          <Table
+            dataSource={logModalData.logs.map((log, idx) => ({
+              ...log,
+              key: idx,
+            }))}
+            columns={[
+              {
+                title: 'IP',
+                dataIndex: 'ip',
+                render: (text) => <Tag>{text}</Tag>,
+              },
+              {
+                title: t('首次出现'),
+                dataIndex: 'first_seen',
+                render: (text) => timestamp2string(text),
+              },
+              {
+                title: t('最后出现'),
+                dataIndex: 'last_seen',
+                render: (text) => timestamp2string(text),
+              },
+            ]}
+            pagination={false}
+            size='small'
+          />
+        )}
       </Modal>
     </div>
   );
