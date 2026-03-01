@@ -119,6 +119,33 @@ func GetFingerprintUserIdsMap(fingerprints []string) (map[string][]int, error) {
 	return result, nil
 }
 
+func ListUserIdsWithSharedFingerprints() ([]int, error) {
+	userIds := make([]int, 0)
+
+	sharedFingerprintQuery := DB.Model(&UserTLSFingerprint{}).
+		Select("fingerprint").
+		Group("fingerprint").
+		Having("COUNT(DISTINCT user_id) > 1")
+
+	err := DB.Model(&UserTLSFingerprint{}).
+		Distinct("user_id").
+		Where("fingerprint IN (?)", sharedFingerprintQuery).
+		Order("user_id ASC").
+		Pluck("user_id", &userIds).Error
+	if err != nil {
+		return nil, err
+	}
+	return userIds, nil
+}
+
+func DeleteAllUserTLSFingerprints() (int64, error) {
+	result := DB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&UserTLSFingerprint{})
+	if result.Error != nil {
+		return 0, result.Error
+	}
+	return result.RowsAffected, nil
+}
+
 func GetUsersByIds(userIds []int) (map[int]*User, error) {
 	result := make(map[int]*User)
 	if len(userIds) == 0 {

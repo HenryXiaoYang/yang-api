@@ -14,8 +14,10 @@ import (
 )
 
 const (
-	IPRiskRapidSwitch = "IP_RAPID_SWITCH"
-	IPRiskHopping     = "IP_HOPPING"
+	IPRiskRapidSwitch         = "IP_RAPID_SWITCH"
+	IPRiskHopping             = "IP_HOPPING"
+	RiskTypeSharedFingerprint = "SHARED_FINGERPRINT"
+	RiskTypeSuspectedAlt      = "SUSPECTED_ALT"
 
 	userControlEnabledOptionKey = "user_control_enabled"
 
@@ -194,6 +196,14 @@ func ListRiskUserIdsByIPSwitch(riskType string, cfg IPSwitchDetectionConfig) ([]
 
 func isSupportedIPRiskType(riskType string) bool {
 	return riskType == IPRiskRapidSwitch || riskType == IPRiskHopping
+}
+
+func IsSupportedUserControlRiskType(riskType string) bool {
+	return isSupportedIPRiskType(riskType) || IsSharedFingerprintRiskType(riskType)
+}
+
+func IsSharedFingerprintRiskType(riskType string) bool {
+	return riskType == RiskTypeSharedFingerprint || riskType == RiskTypeSuspectedAlt
 }
 
 func buildIPStaySegments(logs []*model.UserIPAccessLog) []ipStaySegment {
