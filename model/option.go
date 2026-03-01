@@ -150,6 +150,11 @@ func InitOptionMap() {
 	common.OptionMap["AutomaticDisableStatusCodes"] = operation_setting.AutomaticDisableStatusCodesToString()
 	common.OptionMap["AutomaticRetryStatusCodes"] = operation_setting.AutomaticRetryStatusCodesToString()
 	common.OptionMap["ExposeRatioEnabled"] = strconv.FormatBool(ratio_setting.IsExposeRatioEnabled())
+	common.OptionMap["user_control_enabled"] = "false"
+	common.OptionMap["rapid_switch_threshold"] = "3"
+	common.OptionMap["rapid_switch_duration"] = "300"
+	common.OptionMap["hopping_threshold"] = "3"
+	common.OptionMap["hopping_duration"] = "30"
 
 	// 自动添加所有注册的模型配置
 	modelConfigs := config.GlobalConfig.ExportAllConfigs()

@@ -76,6 +76,7 @@ import {
   Trophy,
   Server,
   CalendarClock,
+  Shield,
 } from 'lucide-react';
 import {
   SiAtlassian,
@@ -140,6 +141,8 @@ export function getLucideIcon(key, selected = false) {
     case 'user':
     case 'personal':
       return <User {...commonProps} color={iconColor} />;
+    case 'user_control':
+      return <Shield {...commonProps} color={iconColor} />;
     case 'models':
       return <Package {...commonProps} color={iconColor} />;
     case 'ranking':

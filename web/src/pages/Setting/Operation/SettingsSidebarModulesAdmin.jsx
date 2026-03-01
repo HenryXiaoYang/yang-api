@@ -66,6 +66,7 @@ export default function SettingsSidebarModulesAdmin(props) {
       deployment: true,
       redemption: true,
       user: true,
+      user_control: true,
       subscription: true,
       setting: true,
     },
@@ -128,6 +129,7 @@ export default function SettingsSidebarModulesAdmin(props) {
         deployment: true,
         redemption: true,
         user: true,
+        user_control: true,
         subscription: true,
         setting: true,
       },
@@ -198,6 +200,7 @@ export default function SettingsSidebarModulesAdmin(props) {
             deployment: true,
             redemption: true,
             user: true,
+            user_control: true,
             subscription: true,
             setting: true,
           },
@@ -236,7 +239,11 @@ export default function SettingsSidebarModulesAdmin(props) {
           description: t('绘图任务记录'),
         },
         { key: 'task', title: t('任务日志'), description: t('系统任务记录') },
-        { key: 'ranking', title: t('用户排名'), description: t('用户调用排名') },
+        {
+          key: 'ranking',
+          title: t('用户排名'),
+          description: t('用户调用排名'),
+        },
       ],
     },
     {
@@ -275,6 +282,11 @@ export default function SettingsSidebarModulesAdmin(props) {
           description: t('兑换码生成管理'),
         },
         { key: 'user', title: t('用户管理'), description: t('用户账户管理') },
+        {
+          key: 'user_control',
+          title: t('用户封控'),
+          description: t('TLS/IP 行为封控'),
+        },
         {
           key: 'setting',
           title: t('系统设置'),
