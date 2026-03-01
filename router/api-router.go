@@ -120,6 +120,8 @@ func SetApiRouter(router *gin.Engine) {
 			{
 				adminRoute.GET("/", controller.GetAllUsers)
 				adminRoute.GET("/risk-control", controller.GetUserRiskControlList)
+				adminRoute.GET("/risk-control/:id/ip-logs", controller.GetUserRiskIPLogs)
+				adminRoute.DELETE("/risk-control", controller.DeleteUserRiskControl)
 				adminRoute.DELETE("/risk-control/ip-logs", controller.DeleteAllUserIPAccessLogs)
 				adminRoute.POST("/risk-control/unban-all", controller.UnbanAllUsers)
 				adminRoute.POST("/unban-all", controller.UnbanAllUsers)

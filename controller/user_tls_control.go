@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
@@ -20,6 +21,7 @@ type userRiskControlView struct {
 	Id               int                    `json:"id"`
 	Username         string                 `json:"username"`
 	DisplayName      string                 `json:"display_name"`
+	LinuxDOId        string                 `json:"linux_do_id"`
 	Email            string                 `json:"email"`
 	Group            string                 `json:"group"`
 	Status           int                    `json:"status"`
@@ -107,16 +109,10 @@ func buildUserRiskControlViews(users []*model.User, ipSwitchConfig service.IPSwi
 			}
 		}
 
-		// 从异常分段中提取 IP 列表和日志
+		// 从异常分段中提取 IP 列表（不再填充 IPLogs，改为按需加载）
 		riskSegments := ipMetrics.RiskSegments
-		ipLogViews := make([]*userIPAccessLogView, 0, len(riskSegments))
 		ipSet := make(map[string]struct{})
 		for _, segment := range riskSegments {
-			ipLogViews = append(ipLogViews, &userIPAccessLogView{
-				Ip:        segment.Ip,
-				FirstSeen: segment.FirstSeen,
-				LastSeen:  segment.LastSeen,
-			})
 			if segment.Ip != "" {
 				ipSet[segment.Ip] = struct{}{}
 			}
@@ -131,6 +127,7 @@ func buildUserRiskControlViews(users []*model.User, ipSwitchConfig service.IPSwi
 			Id:               user.Id,
 			Username:         user.Username,
 			DisplayName:      user.DisplayName,
+			LinuxDOId:        user.LinuxDOId,
 			Email:            user.Email,
 			Group:            user.Group,
 			Status:           user.Status,
@@ -142,7 +139,7 @@ func buildUserRiskControlViews(users []*model.User, ipSwitchConfig service.IPSwi
 			RealSwitchCount:  ipMetrics.RealSwitchCount,
 			IPRiskTags:       ipMetrics.RiskTags,
 			IPList:           ipList,
-			IPLogs:           ipLogViews,
+			IPLogs:           []*userIPAccessLogView{}, // 按需加载，列表不填充
 		})
 	}
 
@@ -168,5 +165,70 @@ func UnbanAllUsers(c *gin.Context) {
 	}
 	common.ApiSuccess(c, gin.H{
 		"updated_count": updatedCount,
+	})
+}
+
+// GetUserRiskIPLogs 获取单个用户的异常 IP 日志（按需加载）
+func GetUserRiskIPLogs(c *gin.Context) {
+	if !service.IsUserControlEnabled() {
+		common.ApiErrorMsg(c, "功能未启用")
+		return
+	}
+
+	userId, err := strconv.Atoi(c.Param("id"))
+	if err != nil || userId <= 0 {
+		common.ApiErrorMsg(c, "无效的用户 ID")
+		return
+	}
+
+	ipSwitchConfig := service.GetIPSwitchDetectionConfig()
+	ipSwitchMetricsMap, err := service.BuildUserIPSwitchMetricsByUserIds([]int{userId}, ipSwitchConfig)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+
+	ipMetrics := ipSwitchMetricsMap[userId]
+	if ipMetrics == nil {
+		common.ApiSuccess(c, []*userIPAccessLogView{})
+		return
+	}
+
+	riskSegments := ipMetrics.RiskSegments
+	ipLogViews := make([]*userIPAccessLogView, 0, len(riskSegments))
+	for _, segment := range riskSegments {
+		ipLogViews = append(ipLogViews, &userIPAccessLogView{
+			Ip:        segment.Ip,
+			FirstSeen: segment.FirstSeen,
+			LastSeen:  segment.LastSeen,
+		})
+	}
+
+	common.ApiSuccess(c, ipLogViews)
+}
+
+type deleteUserRiskControlRequest struct {
+	Ids []int `json:"ids"`
+}
+
+// DeleteUserRiskControl 删除用户风控记录（支持批量）
+func DeleteUserRiskControl(c *gin.Context) {
+	var req deleteUserRiskControlRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.ApiErrorMsg(c, "无效的请求参数")
+		return
+	}
+	if len(req.Ids) == 0 {
+		common.ApiErrorMsg(c, "未指定用户 ID")
+		return
+	}
+
+	deletedCount, err := model.DeleteUserIPAccessLogsByUserIds(req.Ids)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, gin.H{
+		"deleted_count": deletedCount,
 	})
 }

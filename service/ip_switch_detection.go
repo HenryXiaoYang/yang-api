@@ -18,6 +18,7 @@ const (
 	IPRiskHopping     = "IP_HOPPING"
 
 	userControlEnabledOptionKey = "user_control_enabled"
+	ipFilterCIDRListOptionKey   = "ip_filter_cidr_list"
 
 	defaultRapidSwitchThreshold = 3
 	defaultRapidSwitchDuration  = 300
@@ -27,6 +28,14 @@ const (
 	maxAnalyzeLogsPerUser = 200
 	riskUserScanBatchSize = 200
 )
+
+// defaultFilterCIDRs contains Docker and container network ranges to filter by default
+var defaultFilterCIDRs = []string{
+	"172.17.0.0/16", // Docker default bridge
+	"172.18.0.0/16", // Docker custom networks
+	"172.19.0.0/16",
+	"172.20.0.0/16",
+}
 
 type IPSwitchDetectionConfig struct {
 	RapidSwitchThreshold int `json:"rapid_switch_threshold"`
@@ -65,6 +74,40 @@ func IsUserControlEnabled() bool {
 	common.OptionMapRWMutex.RLock()
 	defer common.OptionMapRWMutex.RUnlock()
 	return strings.TrimSpace(common.OptionMap[userControlEnabledOptionKey]) == "true"
+}
+
+func getIPFilterCIDRList() []string {
+	common.OptionMapRWMutex.RLock()
+	defer common.OptionMapRWMutex.RUnlock()
+
+	result := append([]string{}, defaultFilterCIDRs...)
+	customList := strings.TrimSpace(common.OptionMap[ipFilterCIDRListOptionKey])
+	if customList != "" {
+		for _, cidr := range strings.Split(customList, ",") {
+			cidr = strings.TrimSpace(cidr)
+			if cidr != "" {
+				result = append(result, cidr)
+			}
+		}
+	}
+	return result
+}
+
+func shouldFilterIP(ipStr string) bool {
+	parsedIP := common.ParseIP(ipStr)
+	if parsedIP == nil {
+		return true // Filter unparseable IPs
+	}
+	// Filter private/loopback IPs
+	if common.IsPrivateIP(parsedIP) {
+		return true
+	}
+	// Filter configured CIDR list (includes Docker network ranges)
+	filterList := getIPFilterCIDRList()
+	if common.IsIpInCIDRList(parsedIP, filterList) {
+		return true
+	}
+	return false
 }
 
 func TrackUserIPAccess(c *gin.Context, userId int) {
@@ -267,10 +310,12 @@ func BuildIPStaySegments(logs []*model.UserIPAccessLog) []*IPStaySegment {
 	segments := make([]*IPStaySegment, 0, len(logs))
 	firstLogIdx := -1
 	for idx, log := range logs {
-		if normalizeIPAddress(log.Ip, 64) != "" {
-			firstLogIdx = idx
-			break
+		normalizedIP := normalizeIPAddress(log.Ip, 64)
+		if normalizedIP == "" || shouldFilterIP(normalizedIP) {
+			continue
 		}
+		firstLogIdx = idx
+		break
 	}
 	if firstLogIdx < 0 {
 		return segments
@@ -285,7 +330,7 @@ func BuildIPStaySegments(logs []*model.UserIPAccessLog) []*IPStaySegment {
 	for idx := firstLogIdx + 1; idx < len(logs); idx++ {
 		log := logs[idx]
 		normalizedIP := normalizeIPAddress(log.Ip, 64)
-		if normalizedIP == "" {
+		if normalizedIP == "" || shouldFilterIP(normalizedIP) {
 			continue
 		}
 		if normalizedIP == currentSegment.Ip {
