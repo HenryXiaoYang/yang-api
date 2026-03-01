@@ -35,11 +35,22 @@ const toStringValue = (value) => {
   return String(value);
 };
 
+const toBooleanValue = (value) => {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (value === null || value === undefined) {
+    return false;
+  }
+  const normalizedValue = String(value).trim().toLowerCase();
+  return normalizedValue === 'true' || normalizedValue === '1';
+};
+
 const UserControlSetting = () => {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [inputs, setInputs] = useState({
-    user_control_enabled: 'false',
+    user_control_enabled: false,
     rapid_switch_threshold: '3',
     rapid_switch_duration: '300',
     hopping_threshold: '3',
@@ -60,7 +71,11 @@ const UserControlSetting = () => {
       const currentInputs = { ...inputs };
       data.forEach((item) => {
         if (Object.prototype.hasOwnProperty.call(currentInputs, item.key)) {
-          currentInputs[item.key] = item.value;
+          if (item.key === 'user_control_enabled') {
+            currentInputs[item.key] = toBooleanValue(item.value);
+          } else {
+            currentInputs[item.key] = toStringValue(item.value);
+          }
         }
       });
       setInputs(currentInputs);
@@ -81,7 +96,12 @@ const UserControlSetting = () => {
     const requestQueue = updateArray.map((item) =>
       API.put('/api/option/', {
         key: item.key,
-        value: inputs[item.key],
+        value:
+          item.key === 'user_control_enabled'
+            ? inputs[item.key]
+              ? 'true'
+              : 'false'
+            : inputs[item.key],
       }),
     );
     setLoading(true);
@@ -123,11 +143,11 @@ const UserControlSetting = () => {
               label={t('启用用户封控功能')}
               checkedText='｜'
               uncheckedText='〇'
-              checked={inputs.user_control_enabled === 'true'}
+              checked={inputs.user_control_enabled}
               onChange={(value) =>
                 setInputs((prev) => ({
                   ...prev,
-                  user_control_enabled: value ? 'true' : 'false',
+                  user_control_enabled: Boolean(value),
                 }))
               }
               helpText={t('关闭后仍会采集 TLS 指纹数据，但封控功能不会生效')}
