@@ -2,6 +2,8 @@ package model
 
 import (
 	"sort"
+
+	"gorm.io/gorm"
 )
 
 type UserIPAccessLog struct {
@@ -69,4 +71,9 @@ func ListUserIdsWithIPAccessLogs() ([]int, error) {
 	}
 	sort.Ints(userIds)
 	return userIds, nil
+}
+
+func DeleteAllUserIPAccessLogs() (int64, error) {
+	result := DB.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&UserIPAccessLog{})
+	return result.RowsAffected, result.Error
 }

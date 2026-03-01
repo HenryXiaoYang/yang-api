@@ -191,7 +191,7 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         className: isAdmin() ? '' : 'tableHiddle',
       },
       {
-        text: t('用户封控'),
+        text: t('用户风控'),
         itemKey: 'user_control',
         to: '/user-control',
         className: isAdmin() ? '' : 'tableHiddle',

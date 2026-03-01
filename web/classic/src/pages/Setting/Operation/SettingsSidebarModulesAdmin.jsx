@@ -284,8 +284,8 @@ export default function SettingsSidebarModulesAdmin(props) {
         { key: 'user', title: t('用户管理'), description: t('用户账户管理') },
         {
           key: 'user_control',
-          title: t('用户封控'),
-          description: t('TLS/IP 行为封控'),
+          title: t('用户风控'),
+          description: t('IP 行为风控'),
         },
         {
           key: 'setting',

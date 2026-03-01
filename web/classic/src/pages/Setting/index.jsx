@@ -176,7 +176,7 @@ const Setting = () => {
       tab: (
         <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
           <Shield size={18} />
-          {t('用户封控设置')}
+          {t('用户风控设置')}
         </span>
       ),
       content: <UserControlSetting />,

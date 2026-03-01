@@ -134,23 +134,23 @@ const UserControlSetting = () => {
       });
   };
 
-  const clearAllFingerprints = () => {
+  const clearAllIPRiskLogs = () => {
     Modal.confirm({
-      title: t('确认清除所有指纹记录'),
-      content: t('该操作将永久删除全部 TLS 指纹记录，且无法恢复。'),
+      title: t('确认清除风控数据'),
+      content: t('该操作将永久删除全部 IP 风控记录，且无法恢复。'),
       okText: t('确认清除'),
       okButtonProps: { type: 'danger' },
       cancelText: t('取消'),
       onOk: async () => {
         setLoading(true);
         try {
-          const res = await API.delete('/api/user/tls-control/fingerprints');
+          const res = await API.delete('/api/user/risk-control/ip-logs');
           const { success, message } = res.data;
           if (!success) {
             showError(message || t('操作失败'));
             return;
           }
-          showSuccess(t('已清除所有指纹记录'));
+          showSuccess(t('已清除所有 IP 风控记录'));
         } catch (error) {
           showError(error.message || t('操作失败'));
         } finally {
@@ -170,7 +170,7 @@ const UserControlSetting = () => {
       onOk: async () => {
         setLoading(true);
         try {
-          const res = await API.post('/api/user/tls-control/unban-all');
+          const res = await API.post('/api/user/risk-control/unban-all');
           const { success, message } = res.data;
           if (!success) {
             showError(message || t('操作失败'));
@@ -198,10 +198,10 @@ const UserControlSetting = () => {
           getFormApi={(formAPI) => (refForm.current = formAPI)}
           style={{ marginBottom: 15 }}
         >
-          <Form.Section text={t('用户封控设置')}>
+          <Form.Section text={t('用户风控设置')}>
             <Form.Switch
               field='user_control_enabled'
-              label={t('启用用户封控功能')}
+              label={t('启用用户风控功能')}
               checkedText='｜'
               uncheckedText='〇'
               checked={inputs.user_control_enabled}
@@ -211,7 +211,7 @@ const UserControlSetting = () => {
                   user_control_enabled: Boolean(value),
                 }))
               }
-              helpText={t('关闭后仍会采集 TLS 指纹数据，但封控功能不会生效')}
+              helpText={t('关闭后仍会采集 IP 记录，但风控功能不会生效')}
               style={{ marginBottom: 8 }}
             />
             <Banner
@@ -289,7 +289,7 @@ const UserControlSetting = () => {
             </Row>
             <Row style={{ marginTop: 16 }}>
               <Button type='primary' onClick={onSubmit}>
-                {t('保存用户封控设置')}
+                {t('保存用户风控设置')}
               </Button>
             </Row>
             <Row style={{ marginTop: 24 }}>
@@ -299,8 +299,8 @@ const UserControlSetting = () => {
                 style={{ width: '100%', marginBottom: 12 }}
               />
               <div className='flex flex-wrap gap-2'>
-                <Button type='danger' onClick={clearAllFingerprints}>
-                  {t('清除所有指纹记录')}
+                <Button type='danger' onClick={clearAllIPRiskLogs}>
+                  {t('清除风控数据（仅 IP 记录）')}
                 </Button>
                 <Button type='danger' onClick={unbanAllUsers}>
                   {t('解封所有用户')}

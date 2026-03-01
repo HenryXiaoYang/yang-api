@@ -22,7 +22,6 @@ import {
   Button,
   Empty,
   Input,
-  Popover,
   Select,
   Space,
   Tag,
@@ -39,7 +38,6 @@ import {
   API,
   showError,
   showSuccess,
-  timestamp2string,
   createCardProPagination,
 } from '../../helpers';
 import { useIsMobile } from '../../hooks/common/useIsMobile';
@@ -49,9 +47,6 @@ const { Text } = Typography;
 const RISK_TYPE_LABEL_MAP = {
   IP_RAPID_SWITCH: 'IP 频繁切换',
   IP_HOPPING: 'IP 跳跃异常',
-  SUSPECTED_ALT: '疑似小号',
-  SHARED_FINGERPRINT: '疑似小号',
-  suspected_alt: '疑似小号',
 };
 
 const RISK_TAG_COLOR_MAP = {
@@ -82,7 +77,7 @@ const UserControl = () => {
   ) => {
     setLoading(true);
     try {
-      let url = `/api/user/tls-control?p=${page}&page_size=${size}`;
+      let url = `/api/user/risk-control?p=${page}&page_size=${size}`;
       if (search) {
         url += `&keyword=${encodeURIComponent(search)}`;
       }
@@ -195,7 +190,7 @@ const UserControl = () => {
         selectedRowKeys.includes(item.id) && !item.deleted && item.status === 1,
     );
     if (targetUsers.length === 0) {
-      showError(t('没有可封控的账号'));
+      showError(t('没有可风控的账号'));
       return;
     }
 
@@ -210,9 +205,9 @@ const UserControl = () => {
     setBatchLoading(false);
 
     if (failedUsers.length > 0) {
-      showError(`${t('部分账号封控失败')}: ${failedUsers.join(', ')}`);
+      showError(`${t('部分账号风控失败')}: ${failedUsers.join(', ')}`);
     } else {
-      showSuccess(t('批量封控完成'));
+      showSuccess(t('批量风控完成'));
     }
     await loadUsers(activePage, pageSize, keyword, riskType);
   };
@@ -260,28 +255,6 @@ const UserControl = () => {
         ),
       },
       {
-        title: t('TLS 指纹'),
-        dataIndex: 'latest_fingerprint',
-        render: (text, record) => {
-          if (!text) {
-            return <Tag color='white'>{t('暂无')}</Tag>;
-          }
-          const shortened = text.length > 28 ? `${text.slice(0, 28)}...` : text;
-          return (
-            <div className='flex flex-col gap-1'>
-              <Tag color={record.suspected_alt ? 'red' : 'blue'}>
-                {shortened}
-              </Tag>
-              <Text type='tertiary' size='small'>
-                {record.latest_seen
-                  ? timestamp2string(record.latest_seen)
-                  : '-'}
-              </Text>
-            </div>
-          );
-        },
-      },
-      {
         title: t('IP 风险'),
         dataIndex: 'ip_risk_tags',
         render: (_, record) => {
@@ -304,59 +277,6 @@ const UserControl = () => {
                 {t('平均停留')} {Number(record.avg_ip_duration || 0).toFixed(1)}
                 s
               </Text>
-            </div>
-          );
-        },
-      },
-      {
-        title: t('疑似关系'),
-        dataIndex: 'related_users',
-        render: (_, record) => {
-          if (!record.suspected_alt) {
-            return <Tag color='green'>{t('未发现共享')}</Tag>;
-          }
-          const content = (
-            <div className='flex flex-col gap-1 max-w-[260px]'>
-              {(record.related_users || []).map((user) => (
-                <Tag
-                  key={user.id}
-                  color={user.status === 1 ? 'blue' : 'red'}
-                  className='!mr-0'
-                >
-                  #{user.id} {user.username}
-                </Tag>
-              ))}
-            </div>
-          );
-          return (
-            <Popover content={content} position='leftTop'>
-              <Tag color='red'>
-                {t('疑似小号')} ({record.related_users?.length || 0})
-              </Tag>
-            </Popover>
-          );
-        },
-      },
-      {
-        title: t('指纹明细'),
-        dataIndex: 'fingerprints',
-        render: (fingerprints = []) => {
-          if (!fingerprints.length) {
-            return <Text type='tertiary'>{t('暂无')}</Text>;
-          }
-          return (
-            <div className='flex flex-wrap gap-1'>
-              {fingerprints.slice(0, 3).map((fp) => (
-                <Tag
-                  key={fp.fingerprint}
-                  color={fp.shared_user_count > 0 ? 'red' : 'white'}
-                >
-                  {fp.source || 'tls'} · {t('请求')} {fp.request_count}
-                </Tag>
-              ))}
-              {fingerprints.length > 3 && (
-                <Tag color='blue'>+{fingerprints.length - 3}</Tag>
-              )}
             </div>
           );
         },
@@ -386,9 +306,9 @@ const UserControl = () => {
         type='type1'
         descriptionArea={
           <div className='flex flex-col gap-1'>
-            <Text strong>{t('用户封控')}</Text>
+            <Text strong>{t('用户风控')}</Text>
             <Text type='tertiary' size='small'>
-              {t('基于 TLS 指纹与 IP 切换行为识别高风险账号并进行批量封控')}
+              {t('基于 IP 切换行为识别高风险账号并进行批量风控')}
             </Text>
             {!featureEnabled && (
               <Text type='danger' size='small'>
@@ -421,9 +341,6 @@ const UserControl = () => {
                 </Select.Option>
                 <Select.Option value='IP_HOPPING'>
                   {t(RISK_TYPE_LABEL_MAP.IP_HOPPING)}
-                </Select.Option>
-                <Select.Option value='SUSPECTED_ALT'>
-                  {t(RISK_TYPE_LABEL_MAP.SUSPECTED_ALT)}
                 </Select.Option>
               </Select>
               <Button
@@ -465,13 +382,6 @@ const UserControl = () => {
           hidePagination={true}
           loading={loading}
           onRow={(record) => {
-            if (record.suspected_alt) {
-              return {
-                style: {
-                  background: 'rgba(255, 99, 71, 0.08)',
-                },
-              };
-            }
             if ((record.ip_risk_tags || []).length > 0) {
               return {
                 style: {
