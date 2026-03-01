@@ -242,6 +242,7 @@ const UserControl = () => {
       {
         title: t('账号'),
         dataIndex: 'username',
+        width: 200,
         render: (text, record) => (
           <div className='flex flex-col'>
             <Space spacing={4}>
@@ -253,6 +254,22 @@ const UserControl = () => {
             </Text>
           </div>
         ),
+      },
+      {
+        title: t('邮箱'),
+        dataIndex: 'email',
+        width: 200,
+        render: (text) => (
+          <Text type='tertiary' size='small' ellipsis={{ showTooltip: true }}>
+            {text || '-'}
+          </Text>
+        ),
+      },
+      {
+        title: t('分组'),
+        dataIndex: 'group',
+        width: 120,
+        render: (text) => <Tag>{text || 'default'}</Tag>,
       },
       {
         title: t('IP 风险'),
