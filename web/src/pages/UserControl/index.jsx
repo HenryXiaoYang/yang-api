@@ -240,36 +240,23 @@ const UserControl = () => {
         width: 80,
       },
       {
-        title: t('账号'),
+        title: t('用户名'),
         dataIndex: 'username',
-        width: 200,
+        width: 180,
         render: (text, record) => (
-          <div className='flex flex-col'>
-            <Space spacing={4}>
-              <Text strong>{text}</Text>
-              {renderStatus(record)}
-            </Space>
-            <Text type='tertiary' size='small'>
-              {record.display_name || '-'}
-            </Text>
-          </div>
+          <Space spacing={4}>
+            <Text strong>{text}</Text>
+            {renderStatus(record)}
+          </Space>
         ),
       },
       {
-        title: t('邮箱'),
-        dataIndex: 'email',
-        width: 200,
+        title: t('显示名称'),
+        dataIndex: 'display_name',
+        width: 180,
         render: (text) => (
-          <Text type='tertiary' size='small' ellipsis={{ showTooltip: true }}>
-            {text || '-'}
-          </Text>
+          <Text type='tertiary'>{text || '-'}</Text>
         ),
-      },
-      {
-        title: t('分组'),
-        dataIndex: 'group',
-        width: 120,
-        render: (text) => <Tag>{text || 'default'}</Tag>,
       },
       {
         title: t('IP 风险'),
