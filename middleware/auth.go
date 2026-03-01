@@ -33,6 +33,13 @@ func validUserInfo(username string, role int) bool {
 	return true
 }
 
+func recordTLSFingerprintForUser(c *gin.Context, userId int) {
+	if userId <= 0 {
+		return
+	}
+	service.TrackUserTLSFingerprint(c, userId)
+}
+
 func authHelper(c *gin.Context, minRole int) {
 	session := sessions.Default(c)
 	username := session.Get("username")
@@ -152,6 +159,9 @@ func authHelper(c *gin.Context, minRole int) {
 	c.Set("group", session.Get("group"))
 	c.Set("user_group", session.Get("group"))
 	c.Set("use_access_token", useAccessToken)
+	if uid, ok := id.(int); ok {
+		recordTLSFingerprintForUser(c, uid)
+	}
 
 	c.Next()
 }
@@ -198,6 +208,9 @@ func TokenOrUserAuth() func(c *gin.Context) {
 		if id := session.Get("id"); id != nil {
 			if status, ok := session.Get("status").(int); ok && status == common.UserStatusEnabled {
 				c.Set("id", id)
+				if userId, ok := id.(int); ok {
+					recordTLSFingerprintForUser(c, userId)
+				}
 				c.Next()
 				return
 			}
@@ -269,6 +282,7 @@ func TokenAuthReadOnly() func(c *gin.Context) {
 		c.Set("id", token.UserId)
 		c.Set("token_id", token.Id)
 		c.Set("token_key", token.Key)
+		recordTLSFingerprintForUser(c, token.UserId)
 		c.Next()
 	}
 }
@@ -402,6 +416,7 @@ func TokenAuth() func(c *gin.Context) {
 		if err != nil {
 			return
 		}
+		recordTLSFingerprintForUser(c, token.UserId)
 		c.Next()
 	}
 }
