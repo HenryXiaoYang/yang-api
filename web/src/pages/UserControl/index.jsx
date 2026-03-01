@@ -46,6 +46,19 @@ import { useIsMobile } from '../../hooks/common/useIsMobile';
 
 const { Text } = Typography;
 
+const RISK_TYPE_LABEL_MAP = {
+  IP_RAPID_SWITCH: 'IP 频繁切换',
+  IP_HOPPING: 'IP 跳跃异常',
+  SUSPECTED_ALT: '疑似小号',
+  SHARED_FINGERPRINT: '疑似小号',
+  suspected_alt: '疑似小号',
+};
+
+const RISK_TAG_COLOR_MAP = {
+  IP_RAPID_SWITCH: 'orange',
+  IP_HOPPING: 'red',
+};
+
 const UserControl = () => {
   const { t } = useTranslation();
   const isMobile = useIsMobile();
@@ -276,16 +289,12 @@ const UserControl = () => {
           if (!riskTags.length) {
             return <Tag color='green'>{t('未发现异常')}</Tag>;
           }
-          const tagColorMap = {
-            IP_RAPID_SWITCH: 'orange',
-            IP_HOPPING: 'red',
-          };
           return (
             <div className='flex flex-col gap-1'>
               <div className='flex flex-wrap gap-1'>
                 {riskTags.map((riskTag) => (
-                  <Tag key={riskTag} color={tagColorMap[riskTag] || 'red'}>
-                    {riskTag}
+                  <Tag key={riskTag} color={RISK_TAG_COLOR_MAP[riskTag] || 'red'}>
+                    {t(RISK_TYPE_LABEL_MAP[riskTag] || riskTag)}
                   </Tag>
                 ))}
               </div>
@@ -408,9 +417,14 @@ const UserControl = () => {
               >
                 <Select.Option value=''>{t('全部风险类型')}</Select.Option>
                 <Select.Option value='IP_RAPID_SWITCH'>
-                  IP_RAPID_SWITCH
+                  {t(RISK_TYPE_LABEL_MAP.IP_RAPID_SWITCH)}
                 </Select.Option>
-                <Select.Option value='IP_HOPPING'>IP_HOPPING</Select.Option>
+                <Select.Option value='IP_HOPPING'>
+                  {t(RISK_TYPE_LABEL_MAP.IP_HOPPING)}
+                </Select.Option>
+                <Select.Option value='SUSPECTED_ALT'>
+                  {t(RISK_TYPE_LABEL_MAP.SUSPECTED_ALT)}
+                </Select.Option>
               </Select>
               <Button
                 onClick={handleSearch}

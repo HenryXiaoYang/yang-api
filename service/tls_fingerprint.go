@@ -77,6 +77,9 @@ func TrackUserTLSFingerprint(c *gin.Context, userId int) {
 	if userId <= 0 {
 		return
 	}
+	if shouldSkipTLSFingerprintPath(c) {
+		return
+	}
 	fingerprint, source := BuildTLSFingerprint(c)
 	if fingerprint == "" {
 		return
@@ -91,6 +94,14 @@ func TrackUserTLSFingerprint(c *gin.Context, userId int) {
 			common.SysLog(fmt.Sprintf("failed to record tls fingerprint for user %d: %v", userId, err))
 		}
 	})
+}
+
+func shouldSkipTLSFingerprintPath(c *gin.Context) bool {
+	if c == nil || c.Request == nil || c.Request.URL == nil {
+		return true
+	}
+	path := c.Request.URL.Path
+	return path == "/v1" || strings.HasPrefix(path, "/v1/")
 }
 
 func normalizeHeaderFingerprint(value, header string) string {

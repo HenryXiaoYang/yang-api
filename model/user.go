@@ -355,6 +355,32 @@ func SearchUsersByIds(keyword string, userIds []int, startIdx int, num int) ([]*
 	return users, total, nil
 }
 
+func EnableAllDisabledUsers() (int64, error) {
+	disabledUserIds := make([]int, 0)
+	err := DB.Model(&User{}).
+		Where("status = ?", common.UserStatusDisabled).
+		Pluck("id", &disabledUserIds).Error
+	if err != nil {
+		return 0, err
+	}
+	if len(disabledUserIds) == 0 {
+		return 0, nil
+	}
+
+	result := DB.Model(&User{}).
+		Where("id IN ?", disabledUserIds).
+		Update("status", common.UserStatusEnabled)
+	if result.Error != nil {
+		return 0, result.Error
+	}
+
+	for _, userId := range disabledUserIds {
+		_ = invalidateUserCache(userId)
+	}
+
+	return result.RowsAffected, nil
+}
+
 func GetUserById(id int, selectAll bool) (*User, error) {
 	if id == 0 {
 		return nil, errors.New("id 为空！")
