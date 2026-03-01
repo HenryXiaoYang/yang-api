@@ -18,7 +18,16 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Banner, Button, Card, Col, Form, Row, Spin } from '@douyinfe/semi-ui';
+import {
+  Banner,
+  Button,
+  Card,
+  Col,
+  Form,
+  Modal,
+  Row,
+  Spin,
+} from '@douyinfe/semi-ui';
 import { useTranslation } from 'react-i18next';
 import {
   API,
@@ -125,6 +134,58 @@ const UserControlSetting = () => {
       });
   };
 
+  const clearAllFingerprints = () => {
+    Modal.confirm({
+      title: t('确认清除所有指纹记录'),
+      content: t('该操作将永久删除全部 TLS 指纹记录，且无法恢复。'),
+      okText: t('确认清除'),
+      okButtonProps: { type: 'danger' },
+      cancelText: t('取消'),
+      onOk: async () => {
+        setLoading(true);
+        try {
+          const res = await API.delete('/api/user/tls-control/fingerprints');
+          const { success, message } = res.data;
+          if (!success) {
+            showError(message || t('操作失败'));
+            return;
+          }
+          showSuccess(t('已清除所有指纹记录'));
+        } catch (error) {
+          showError(error.message || t('操作失败'));
+        } finally {
+          setLoading(false);
+        }
+      },
+    });
+  };
+
+  const unbanAllUsers = () => {
+    Modal.confirm({
+      title: t('确认解封所有用户'),
+      content: t('该操作会将所有被禁用用户恢复为启用状态，请谨慎执行。'),
+      okText: t('确认解封'),
+      okButtonProps: { type: 'danger' },
+      cancelText: t('取消'),
+      onOk: async () => {
+        setLoading(true);
+        try {
+          const res = await API.post('/api/user/tls-control/unban-all');
+          const { success, message } = res.data;
+          if (!success) {
+            showError(message || t('操作失败'));
+            return;
+          }
+          showSuccess(t('已解封所有用户'));
+        } catch (error) {
+          showError(error.message || t('操作失败'));
+        } finally {
+          setLoading(false);
+        }
+      },
+    });
+  };
+
   useEffect(() => {
     getOptions().then();
   }, []);
@@ -156,7 +217,7 @@ const UserControlSetting = () => {
             <Banner
               type='info'
               description={t(
-                '配置 IP 切换检测阈值，用于识别快速切换与 hopping 风险账号',
+                '配置 IP 切换检测阈值，用于识别 IP 频繁切换与 IP 跳跃风险账号',
               )}
               style={{ marginBottom: 16 }}
             />
@@ -196,7 +257,7 @@ const UserControlSetting = () => {
               <Col xs={24} sm={12} md={12} lg={8} xl={6}>
                 <Form.InputNumber
                   field='hopping_threshold'
-                  label={t('Hopping 次数阈值')}
+                  label={t('IP 跳跃次数阈值')}
                   min={1}
                   step={1}
                   suffix={t('次')}
@@ -212,11 +273,11 @@ const UserControlSetting = () => {
               <Col xs={24} sm={12} md={12} lg={8} xl={6}>
                 <Form.InputNumber
                   field='hopping_duration'
-                  label={t('Hopping 停留阈值')}
+                  label={t('IP 跳跃停留阈值')}
                   min={1}
                   step={1}
                   suffix={t('秒')}
-                  extraText={t('平均停留时长低于该值判定为 IP_HOPPING')}
+                  extraText={t('平均停留时长低于该值判定为 IP 跳跃')}
                   onChange={(value) =>
                     setInputs((prev) => ({
                       ...prev,
@@ -230,6 +291,21 @@ const UserControlSetting = () => {
               <Button type='primary' onClick={onSubmit}>
                 {t('保存用户封控设置')}
               </Button>
+            </Row>
+            <Row style={{ marginTop: 24 }}>
+              <Banner
+                type='danger'
+                description={t('以下操作不可逆，执行前请再次确认')}
+                style={{ width: '100%', marginBottom: 12 }}
+              />
+              <div className='flex flex-wrap gap-2'>
+                <Button type='danger' onClick={clearAllFingerprints}>
+                  {t('清除所有指纹记录')}
+                </Button>
+                <Button type='danger' onClick={unbanAllUsers}>
+                  {t('解封所有用户')}
+                </Button>
+              </div>
             </Row>
           </Form.Section>
         </Form>

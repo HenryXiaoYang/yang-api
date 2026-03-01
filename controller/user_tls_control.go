@@ -59,7 +59,7 @@ func GetUserTLSControlList(c *gin.Context) {
 	pageInfo := common.GetPageQuery(c)
 	keyword := strings.TrimSpace(c.Query("keyword"))
 	riskType := strings.TrimSpace(strings.ToUpper(c.Query("risk_type")))
-	if riskType != service.IPRiskRapidSwitch && riskType != service.IPRiskHopping {
+	if !service.IsSupportedUserControlRiskType(riskType) {
 		riskType = ""
 	}
 	ipSwitchConfig := service.GetIPSwitchDetectionConfig()
@@ -78,7 +78,11 @@ func GetUserTLSControlList(c *gin.Context) {
 		}
 	} else {
 		var riskUserIds []int
-		riskUserIds, err = service.ListRiskUserIdsByIPSwitch(riskType, ipSwitchConfig)
+		if service.IsSharedFingerprintRiskType(riskType) {
+			riskUserIds, err = model.ListUserIdsWithSharedFingerprints()
+		} else {
+			riskUserIds, err = service.ListRiskUserIdsByIPSwitch(riskType, ipSwitchConfig)
+		}
 		if err != nil {
 			common.ApiError(c, err)
 			return
@@ -259,4 +263,26 @@ func buildRelatedUsers(userIds []int, usersMap map[int]*model.User, currentUserI
 		return relatedUsers[:limit]
 	}
 	return relatedUsers
+}
+
+func DeleteAllUserTLSFingerprints(c *gin.Context) {
+	deletedCount, err := model.DeleteAllUserTLSFingerprints()
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, gin.H{
+		"deleted_count": deletedCount,
+	})
+}
+
+func UnbanAllUsers(c *gin.Context) {
+	updatedCount, err := model.EnableAllDisabledUsers()
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, gin.H{
+		"updated_count": updatedCount,
+	})
 }

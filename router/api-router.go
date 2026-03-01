@@ -114,6 +114,10 @@ func SetApiRouter(router *gin.Engine) {
 			{
 				adminRoute.GET("/", controller.GetAllUsers)
 				adminRoute.GET("/tls-control", controller.GetUserTLSControlList)
+				adminRoute.DELETE("/tls-control/fingerprints", controller.DeleteAllUserTLSFingerprints)
+				adminRoute.POST("/tls-control/unban-all", controller.UnbanAllUsers)
+				adminRoute.DELETE("/tls-fingerprints/all", controller.DeleteAllUserTLSFingerprints)
+				adminRoute.POST("/unban-all", controller.UnbanAllUsers)
 				adminRoute.GET("/topup", controller.GetAllTopUps)
 				adminRoute.POST("/topup/complete", controller.AdminCompleteTopUp)
 				adminRoute.GET("/search", controller.SearchUsers)
