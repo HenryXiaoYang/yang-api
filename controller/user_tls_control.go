@@ -51,6 +51,11 @@ type userTLSControlView struct {
 }
 
 func GetUserTLSControlList(c *gin.Context) {
+	if !service.IsUserControlEnabled() {
+		common.ApiErrorMsg(c, "功能未启用")
+		return
+	}
+
 	pageInfo := common.GetPageQuery(c)
 	keyword := strings.TrimSpace(c.Query("keyword"))
 	riskType := strings.TrimSpace(strings.ToUpper(c.Query("risk_type")))
