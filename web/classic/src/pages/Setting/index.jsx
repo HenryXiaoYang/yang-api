@@ -35,6 +35,7 @@ import {
   Server,
   Activity,
   Trophy,
+  Shield,
 } from 'lucide-react';
 
 import SystemSetting from '../../components/settings/SystemSetting';
@@ -51,6 +52,7 @@ import PaymentSetting from '../../components/settings/PaymentSetting';
 import ModelDeploymentSetting from '../../components/settings/ModelDeploymentSetting';
 import PerformanceSetting from '../../components/settings/PerformanceSetting';
 import RankingSetting from '../../components/settings/RankingSetting';
+import UserControlSetting from '../../components/settings/UserControlSetting';
 
 const Setting = () => {
   const { t } = useTranslation();
@@ -169,6 +171,16 @@ const Setting = () => {
       ),
       content: <RankingSetting />,
       itemKey: 'ranking',
+    });
+    panes.push({
+      tab: (
+        <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <Shield size={18} />
+          {t('用户封控设置')}
+        </span>
+      ),
+      content: <UserControlSetting />,
+      itemKey: 'user-control-setting',
     });
     panes.push({
       tab: (

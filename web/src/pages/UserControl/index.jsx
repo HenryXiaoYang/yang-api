@@ -23,6 +23,7 @@ import {
   Empty,
   Input,
   Popover,
+  Select,
   Space,
   Tag,
   Typography,
@@ -55,15 +56,24 @@ const UserControl = () => {
   const [total, setTotal] = useState(0);
   const [keywordInput, setKeywordInput] = useState('');
   const [keyword, setKeyword] = useState('');
+  const [riskType, setRiskType] = useState('');
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [batchLoading, setBatchLoading] = useState(false);
 
-  const loadUsers = async (page = activePage, size = pageSize, search = keyword) => {
+  const loadUsers = async (
+    page = activePage,
+    size = pageSize,
+    search = keyword,
+    currentRiskType = riskType,
+  ) => {
     setLoading(true);
     try {
       let url = `/api/user/tls-control?p=${page}&page_size=${size}`;
       if (search) {
         url += `&keyword=${encodeURIComponent(search)}`;
+      }
+      if (currentRiskType) {
+        url += `&risk_type=${encodeURIComponent(currentRiskType)}`;
       }
       const res = await API.get(url);
       const { success, data, message } = res.data;
@@ -88,32 +98,40 @@ const UserControl = () => {
   };
 
   useEffect(() => {
-    loadUsers(1, pageSize, '').then();
+    loadUsers(1, pageSize, '', '').then();
   }, []);
 
   const handleSearch = async () => {
     const search = keywordInput.trim();
     setKeyword(search);
     setActivePage(1);
-    await loadUsers(1, pageSize, search);
+    await loadUsers(1, pageSize, search, riskType);
   };
 
   const handleReset = async () => {
     setKeywordInput('');
     setKeyword('');
+    setRiskType('');
     setActivePage(1);
-    await loadUsers(1, pageSize, '');
+    await loadUsers(1, pageSize, '', '');
+  };
+
+  const handleRiskTypeChange = async (value) => {
+    const nextRiskType = value || '';
+    setRiskType(nextRiskType);
+    setActivePage(1);
+    await loadUsers(1, pageSize, keyword, nextRiskType);
   };
 
   const handlePageChange = async (page) => {
     setActivePage(page);
-    await loadUsers(page, pageSize, keyword);
+    await loadUsers(page, pageSize, keyword, riskType);
   };
 
   const handlePageSizeChange = async (size) => {
     setPageSize(size);
     setActivePage(1);
-    await loadUsers(1, size, keyword);
+    await loadUsers(1, size, keyword, riskType);
   };
 
   const manageUserStatus = async (userId, action) => {
@@ -142,7 +160,7 @@ const UserControl = () => {
     const ok = await manageUserStatus(record.id, action);
     if (ok) {
       showSuccess(action === 'disable' ? t('账号已禁用') : t('账号已启用'));
-      await loadUsers(activePage, pageSize, keyword);
+      await loadUsers(activePage, pageSize, keyword, riskType);
     }
   };
 
@@ -174,7 +192,7 @@ const UserControl = () => {
     } else {
       showSuccess(t('批量封控完成'));
     }
-    await loadUsers(activePage, pageSize, keyword);
+    await loadUsers(activePage, pageSize, keyword, riskType);
   };
 
   const rowSelection = {
@@ -229,9 +247,44 @@ const UserControl = () => {
           const shortened = text.length > 28 ? `${text.slice(0, 28)}...` : text;
           return (
             <div className='flex flex-col gap-1'>
-              <Tag color={record.suspected_alt ? 'red' : 'blue'}>{shortened}</Tag>
+              <Tag color={record.suspected_alt ? 'red' : 'blue'}>
+                {shortened}
+              </Tag>
               <Text type='tertiary' size='small'>
-                {record.latest_seen ? timestamp2string(record.latest_seen) : '-'}
+                {record.latest_seen
+                  ? timestamp2string(record.latest_seen)
+                  : '-'}
+              </Text>
+            </div>
+          );
+        },
+      },
+      {
+        title: t('IP 风险'),
+        dataIndex: 'ip_risk_tags',
+        render: (_, record) => {
+          const riskTags = record.ip_risk_tags || [];
+          if (!riskTags.length) {
+            return <Tag color='green'>{t('未发现异常')}</Tag>;
+          }
+          const tagColorMap = {
+            IP_RAPID_SWITCH: 'orange',
+            IP_HOPPING: 'red',
+          };
+          return (
+            <div className='flex flex-col gap-1'>
+              <div className='flex flex-wrap gap-1'>
+                {riskTags.map((riskTag) => (
+                  <Tag key={riskTag} color={tagColorMap[riskTag] || 'red'}>
+                    {riskTag}
+                  </Tag>
+                ))}
+              </div>
+              <Text type='tertiary' size='small'>
+                {t('快速切换')} {record.rapid_switch_count || 0} ·{' '}
+                {t('真实切换')} {record.real_switch_count || 0} ·{' '}
+                {t('平均停留')} {Number(record.avg_ip_duration || 0).toFixed(1)}
+                s
               </Text>
             </div>
           );
@@ -306,7 +359,7 @@ const UserControl = () => {
         ),
       },
     ],
-    [t, users],
+    [t],
   );
 
   return (
@@ -317,7 +370,7 @@ const UserControl = () => {
           <div className='flex flex-col gap-1'>
             <Text strong>{t('用户封控')}</Text>
             <Text type='tertiary' size='small'>
-              {t('基于 TLS 指纹识别疑似共享账号并进行批量封控')}
+              {t('基于 TLS 指纹与 IP 切换行为识别高风险账号并进行批量封控')}
             </Text>
           </div>
         }
@@ -332,6 +385,17 @@ const UserControl = () => {
                 placeholder={t('搜索用户名 / 邮箱 / ID')}
                 style={{ width: isMobile ? 220 : 280 }}
               />
+              <Select
+                value={riskType}
+                onChange={handleRiskTypeChange}
+                style={{ width: isMobile ? 180 : 220 }}
+              >
+                <Select.Option value=''>{t('全部风险类型')}</Select.Option>
+                <Select.Option value='IP_RAPID_SWITCH'>
+                  IP_RAPID_SWITCH
+                </Select.Option>
+                <Select.Option value='IP_HOPPING'>IP_HOPPING</Select.Option>
+              </Select>
               <Button onClick={handleSearch} type='primary'>
                 {t('搜索')}
               </Button>
@@ -372,11 +436,20 @@ const UserControl = () => {
                 },
               };
             }
+            if ((record.ip_risk_tags || []).length > 0) {
+              return {
+                style: {
+                  background: 'rgba(255, 165, 0, 0.08)',
+                },
+              };
+            }
             return {};
           }}
           empty={
             <Empty
-              image={<IllustrationNoResult style={{ width: 150, height: 150 }} />}
+              image={
+                <IllustrationNoResult style={{ width: 150, height: 150 }} />
+              }
               darkModeImage={
                 <IllustrationNoResultDark style={{ width: 150, height: 150 }} />
               }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -40,6 +41,10 @@ type userTLSControlView struct {
 	LatestSeen             int64                     `json:"latest_seen"`
 	FingerprintCount       int                       `json:"fingerprint_count"`
 	SharedFingerprintCount int                       `json:"shared_fingerprint_count"`
+	RapidSwitchCount       int                       `json:"rapid_switch_count"`
+	AvgIPDuration          float64                   `json:"avg_ip_duration"`
+	RealSwitchCount        int                       `json:"real_switch_count"`
+	IPRiskTags             []string                  `json:"ip_risk_tags"`
 	SuspectedAlt           bool                      `json:"suspected_alt"`
 	RelatedUsers           []*tlsRelatedUser         `json:"related_users"`
 	Fingerprints           []*userTLSFingerprintView `json:"fingerprints"`
@@ -48,6 +53,11 @@ type userTLSControlView struct {
 func GetUserTLSControlList(c *gin.Context) {
 	pageInfo := common.GetPageQuery(c)
 	keyword := strings.TrimSpace(c.Query("keyword"))
+	riskType := strings.TrimSpace(strings.ToUpper(c.Query("risk_type")))
+	if riskType != service.IPRiskRapidSwitch && riskType != service.IPRiskHopping {
+		riskType = ""
+	}
+	ipSwitchConfig := service.GetIPSwitchDetectionConfig()
 
 	var (
 		users []*model.User
@@ -55,17 +65,27 @@ func GetUserTLSControlList(c *gin.Context) {
 		err   error
 	)
 
-	if keyword == "" {
-		users, total, err = model.GetAllUsers(pageInfo)
+	if riskType == "" {
+		if keyword == "" {
+			users, total, err = model.GetAllUsers(pageInfo)
+		} else {
+			users, total, err = model.SearchUsers(keyword, "", map[string]string{}, pageInfo.GetStartIdx(), pageInfo.GetPageSize())
+		}
 	} else {
-		users, total, err = model.SearchUsers(keyword, "", map[string]string{}, pageInfo.GetStartIdx(), pageInfo.GetPageSize())
+		var riskUserIds []int
+		riskUserIds, err = service.ListRiskUserIdsByIPSwitch(riskType, ipSwitchConfig)
+		if err != nil {
+			common.ApiError(c, err)
+			return
+		}
+		users, total, err = model.SearchUsersByIds(keyword, riskUserIds, pageInfo.GetStartIdx(), pageInfo.GetPageSize())
 	}
 	if err != nil {
 		common.ApiError(c, err)
 		return
 	}
 
-	items, err := buildUserTLSControlViews(users)
+	items, err := buildUserTLSControlViews(users, ipSwitchConfig)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -76,7 +96,7 @@ func GetUserTLSControlList(c *gin.Context) {
 	common.ApiSuccess(c, pageInfo)
 }
 
-func buildUserTLSControlViews(users []*model.User) ([]*userTLSControlView, error) {
+func buildUserTLSControlViews(users []*model.User, ipSwitchConfig service.IPSwitchDetectionConfig) ([]*userTLSControlView, error) {
 	result := make([]*userTLSControlView, 0, len(users))
 	if len(users) == 0 {
 		return result, nil
@@ -88,6 +108,10 @@ func buildUserTLSControlViews(users []*model.User) ([]*userTLSControlView, error
 	}
 
 	fingerprintRecords, err := model.ListUserTLSFingerprintsByUserIds(userIds)
+	if err != nil {
+		return nil, err
+	}
+	ipSwitchMetricsMap, err := service.BuildUserIPSwitchMetricsByUserIds(userIds, ipSwitchConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -128,6 +152,12 @@ func buildUserTLSControlViews(users []*model.User) ([]*userTLSControlView, error
 		sort.Slice(userFingerprints, func(i, j int) bool {
 			return userFingerprints[i].LastSeen > userFingerprints[j].LastSeen
 		})
+		ipMetrics := ipSwitchMetricsMap[user.Id]
+		if ipMetrics == nil {
+			ipMetrics = &service.UserIPSwitchMetrics{
+				RiskTags: []string{},
+			}
+		}
 
 		relatedByUser := make(map[int]*tlsRelatedUser)
 		fingerprintViews := make([]*userTLSFingerprintView, 0, len(userFingerprints))
@@ -183,6 +213,10 @@ func buildUserTLSControlViews(users []*model.User) ([]*userTLSControlView, error
 			LatestSeen:             latestSeen,
 			FingerprintCount:       len(userFingerprints),
 			SharedFingerprintCount: sharedFingerprintCount,
+			RapidSwitchCount:       ipMetrics.RapidSwitchCount,
+			AvgIPDuration:          ipMetrics.AvgIPDuration,
+			RealSwitchCount:        ipMetrics.RealSwitchCount,
+			IPRiskTags:             ipMetrics.RiskTags,
 			SuspectedAlt:           len(relatedUsers) > 0,
 			RelatedUsers:           relatedUsers,
 			Fingerprints:           fingerprintViews,

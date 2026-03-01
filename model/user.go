@@ -296,6 +296,67 @@ func SearchUsers(keyword string, group string, filters map[string]string, startI
 	return users, total, nil
 }
 
+func SearchUsersByIds(keyword string, userIds []int, startIdx int, num int) ([]*User, int64, error) {
+	if len(userIds) == 0 {
+		return []*User{}, 0, nil
+	}
+
+	var users []*User
+	var total int64
+
+	tx := DB.Begin()
+	if tx.Error != nil {
+		return nil, 0, tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	idConditionQuery := tx.Session(&gorm.Session{NewDB: true})
+	const idChunkSize = 500
+	for start := 0; start < len(userIds); start += idChunkSize {
+		end := start + idChunkSize
+		if end > len(userIds) {
+			end = len(userIds)
+		}
+		chunk := userIds[start:end]
+		if start == 0 {
+			idConditionQuery = idConditionQuery.Where("id IN ?", chunk)
+		} else {
+			idConditionQuery = idConditionQuery.Or("id IN ?", chunk)
+		}
+	}
+
+	query := tx.Unscoped().Model(&User{}).Where(idConditionQuery)
+	if keyword != "" {
+		likeCondition := "username LIKE ? OR email LIKE ? OR display_name LIKE ?"
+		keywordInt, err := strconv.Atoi(keyword)
+		if err == nil {
+			likeCondition = "id = ? OR " + likeCondition
+			query = query.Where(likeCondition, keywordInt, "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
+		} else {
+			query = query.Where(likeCondition, "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
+		}
+	}
+
+	if err := query.Count(&total).Error; err != nil {
+		tx.Rollback()
+		return nil, 0, err
+	}
+
+	if err := query.Omit("password").Order("id desc").Limit(num).Offset(startIdx).Find(&users).Error; err != nil {
+		tx.Rollback()
+		return nil, 0, err
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, 0, err
+	}
+	return users, total, nil
+}
+
 func GetUserById(id int, selectAll bool) (*User, error) {
 	if id == 0 {
 		return nil, errors.New("id 为空！")
