@@ -300,7 +300,7 @@ const UserControlSetting = () => {
               />
               <div className='flex flex-wrap gap-2'>
                 <Button type='danger' onClick={clearAllIPRiskLogs}>
-                  {t('清除风控数据（仅 IP 记录）')}
+                  {t('清除风控数据')}
                 </Button>
                 <Button type='danger' onClick={unbanAllUsers}>
                   {t('解封所有用户')}
