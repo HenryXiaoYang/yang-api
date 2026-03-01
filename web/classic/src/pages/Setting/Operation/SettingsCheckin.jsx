@@ -31,13 +31,27 @@ import { useTranslation } from 'react-i18next';
 export default function SettingsCheckin(props) {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
-  const [inputs, setInputs] = useState({
+  // 默认值定义
+  const defaultInputs = {
     'checkin_setting.enabled': false,
     'checkin_setting.min_quota': 1000,
     'checkin_setting.max_quota': 10000,
-  });
+    'pow_setting.enabled': false,
+    'pow_setting.mode': 'replace',
+    'pow_setting.difficulty': 18,
+    'pow_setting.challenge_ttl': 10,
+  };
+
+  const [inputs, setInputs] = useState(defaultInputs);
   const refForm = useRef();
-  const [inputsRow, setInputsRow] = useState(inputs);
+  const [inputsRow, setInputsRow] = useState(defaultInputs);
+
+  // PoW 模式选项
+  const powModeOptions = [
+    { value: 'replace', label: t('替代模式') + ' - ' + t('PoW 完全替代 Turnstile') },
+    { value: 'supplement', label: t('补充模式') + ' - ' + t('PoW 和 Turnstile 都需要') },
+    { value: 'fallback', label: t('回退模式') + ' - ' + t('Turnstile 不可用时使用 PoW') },
+  ];
 
   function handleFieldChange(fieldName) {
     return (value) => {
@@ -81,10 +95,21 @@ export default function SettingsCheckin(props) {
   }
 
   useEffect(() => {
-    const currentInputs = {};
-    for (let key in props.options) {
-      if (Object.keys(inputs).includes(key)) {
-        currentInputs[key] = props.options[key];
+    // 从默认值开始，用 props.options 覆盖
+    const currentInputs = { ...defaultInputs };
+    for (let key of Object.keys(defaultInputs)) {
+      if (props.options[key] !== undefined) {
+        let value = props.options[key];
+        // 布尔类型字段需要转换
+        if (key.endsWith('.enabled')) {
+          value = value === true || value === 'true';
+        }
+        // 数字类型字段需要转换
+        else if (key.endsWith('.min_quota') || key.endsWith('.max_quota') ||
+            key.endsWith('.difficulty') || key.endsWith('.challenge_ttl')) {
+          value = Number(value) || defaultInputs[key];
+        }
+        currentInputs[key] = value;
       }
     }
     setInputs(currentInputs);
@@ -139,12 +164,69 @@ export default function SettingsCheckin(props) {
                 />
               </Col>
             </Row>
-            <Row>
-              <Button size='default' onClick={onSubmit}>
-                {t('保存签到设置')}
-              </Button>
+          </Form.Section>
+
+          <Form.Section text={t('PoW 防滥用设置')}>
+            <Typography.Text
+              type='tertiary'
+              style={{ marginBottom: 16, display: 'block' }}
+            >
+              {t('Proof of Work (PoW) 通过要求客户端进行计算来防止自动化滥用')}
+            </Typography.Text>
+            <Row gutter={16}>
+              <Col xs={24} sm={12} md={6} lg={6} xl={6}>
+                <Form.Switch
+                  field={'pow_setting.enabled'}
+                  label={t('启用 PoW 校验')}
+                  size='default'
+                  checkedText='｜'
+                  uncheckedText='〇'
+                  onChange={handleFieldChange('pow_setting.enabled')}
+                  disabled={!inputs['checkin_setting.enabled']}
+                />
+              </Col>
+              <Col xs={24} sm={12} md={6} lg={6} xl={6}>
+                <Form.Select
+                  field={'pow_setting.mode'}
+                  label={t('PoW 模式')}
+                  placeholder={t('选择 PoW 模式')}
+                  optionList={powModeOptions}
+                  onChange={handleFieldChange('pow_setting.mode')}
+                  disabled={!inputs['pow_setting.enabled'] || !inputs['checkin_setting.enabled']}
+                />
+              </Col>
+              <Col xs={24} sm={12} md={6} lg={6} xl={6}>
+                <Form.InputNumber
+                  field={'pow_setting.difficulty'}
+                  label={t('PoW 难度')}
+                  placeholder={t('前导零 bits 数')}
+                  onChange={handleFieldChange('pow_setting.difficulty')}
+                  min={10}
+                  max={30}
+                  disabled={!inputs['pow_setting.enabled'] || !inputs['checkin_setting.enabled']}
+                  extraText={t('16≈1秒, 18≈3秒, 20≈10秒, 建议16-18')}
+                />
+              </Col>
+              <Col xs={24} sm={12} md={6} lg={6} xl={6}>
+                <Form.InputNumber
+                  field={'pow_setting.challenge_ttl'}
+                  label={t('Challenge 有效期')}
+                  onChange={handleFieldChange('pow_setting.challenge_ttl')}
+                  min={5}
+                  max={300}
+                  disabled={!inputs['pow_setting.enabled'] || !inputs['checkin_setting.enabled']}
+                  suffix={t('秒')}
+                  extraText={t('Challenge 获取后的有效时间')}
+                />
+              </Col>
             </Row>
           </Form.Section>
+
+          <Row>
+            <Button size='default' onClick={onSubmit}>
+              {t('保存签到设置')}
+            </Button>
+          </Row>
         </Form>
       </Spin>
     </>

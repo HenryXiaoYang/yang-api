@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Card,
   Calendar,
@@ -28,6 +28,7 @@ import {
   Tooltip,
   Collapsible,
   Modal,
+  Progress,
 } from '@douyinfe/semi-ui';
 import {
   CalendarCheck,
@@ -35,9 +36,11 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  Cpu,
 } from 'lucide-react';
 import Turnstile from 'react-turnstile';
 import { API, showError, showSuccess, renderQuota } from '../../../../helpers';
+import { usePow } from '../../../../hooks/common/usePow';
 
 const CheckinCalendar = ({ t, status, turnstileEnabled, turnstileSiteKey }) => {
   const [loading, setLoading] = useState(false);
@@ -61,6 +64,12 @@ const CheckinCalendar = ({ t, status, turnstileEnabled, turnstileSiteKey }) => {
   const [initialLoaded, setInitialLoaded] = useState(false);
   // 折叠状态：null 表示未确定（等待首次加载）
   const [isCollapsed, setIsCollapsed] = useState(null);
+
+  // PoW hook
+  const { solveChallenge, solving: powSolving, progress: powProgress } = usePow();
+
+  // 保存 PoW solution 以便在 Turnstile 验证后复用
+  const powSolutionRef = useRef(null);
 
   // 创建日期到额度的映射，方便快速查找
   const checkinRecordsMap = useMemo(() => {
@@ -113,10 +122,49 @@ const CheckinCalendar = ({ t, status, turnstileEnabled, turnstileSiteKey }) => {
     }
   };
 
-  const postCheckin = async (token) => {
-    const url = token
-      ? `/api/user/checkin?turnstile=${encodeURIComponent(token)}`
-      : '/api/user/checkin';
+  // 判断是否需要 PoW
+  const shouldRequirePow = () => {
+    if (!status?.pow_enabled) return false;
+    const mode = status?.pow_mode || 'replace';
+    switch (mode) {
+      case 'replace':
+        return true;
+      case 'supplement':
+        return true;
+      case 'fallback':
+        return !turnstileEnabled;
+      default:
+        return true;
+    }
+  };
+
+  // 判断是否需要 Turnstile
+  const shouldRequireTurnstile = () => {
+    if (!turnstileEnabled) return false;
+    const mode = status?.pow_mode || 'replace';
+    // replace 模式下 PoW 完全替代 Turnstile
+    if (status?.pow_enabled && mode === 'replace') {
+      return false;
+    }
+    return true;
+  };
+
+  // 构建签到 URL
+  const buildCheckinUrl = (turnstileToken, powSolution) => {
+    const params = new URLSearchParams();
+    if (turnstileToken) {
+      params.set('turnstile', turnstileToken);
+    }
+    if (powSolution) {
+      params.set('pow_challenge', powSolution.challenge_id);
+      params.set('pow_nonce', powSolution.nonce);
+    }
+    const queryString = params.toString();
+    return queryString ? `/api/user/checkin?${queryString}` : '/api/user/checkin';
+  };
+
+  const postCheckin = async (turnstileToken, powSolution) => {
+    const url = buildCheckinUrl(turnstileToken, powSolution);
     return API.post(url);
   };
 
@@ -126,29 +174,66 @@ const CheckinCalendar = ({ t, status, turnstileEnabled, turnstileSiteKey }) => {
     return message.includes('Turnstile');
   };
 
-  const doCheckin = async (token) => {
+  const shouldTriggerPow = (message) => {
+    if (!status?.pow_enabled) return false;
+    if (typeof message !== 'string') return true;
+    return message.includes('PoW') || message.includes('pow');
+  };
+
+  // 处理 Turnstile 验证完成
+  const handleTurnstileVerify = (token) => {
+    // 使用保存的 PoW solution
+    doCheckin(token, powSolutionRef.current);
+  };
+
+  const doCheckin = async (turnstileToken = null, powSolution = null) => {
     setCheckinLoading(true);
     try {
-      const res = await postCheckin(token);
+      // 如果需要 PoW 且还没有解决方案，先计算 PoW
+      if (shouldRequirePow() && !powSolution) {
+        const solution = await solveChallenge('checkin');
+        if (!solution) {
+          showError(t('PoW 计算失败，请重试'));
+          setCheckinLoading(false);
+          return;
+        }
+        powSolution = solution;
+        // 保存 PoW solution 以便后续 Turnstile 验证后复用
+        powSolutionRef.current = solution;
+      }
+
+      const res = await postCheckin(turnstileToken, powSolution);
       const { success, data, message } = res.data;
       if (success) {
         showSuccess(
           t('签到成功！获得') + ' ' + renderQuota(data.quota_awarded),
         );
+        // 清除保存的 PoW solution
+        powSolutionRef.current = null;
         // 刷新签到状态
         fetchCheckinStatus(currentMonth);
         setTurnstileModalVisible(false);
       } else {
-        if (!token && shouldTriggerTurnstile(message)) {
+        // 检查是否需要 Turnstile
+        if (!turnstileToken && shouldTriggerTurnstile(message)) {
           if (!turnstileSiteKey) {
             showError('Turnstile is enabled but site key is empty.');
             return;
           }
+          // 需要 Turnstile，PoW solution 已保存在 ref 中
           setTurnstileModalVisible(true);
+          setCheckinLoading(false);
           return;
         }
-        if (token && shouldTriggerTurnstile(message)) {
+        if (turnstileToken && shouldTriggerTurnstile(message)) {
           setTurnstileWidgetKey((v) => v + 1);
+        }
+        // 检查是否需要 PoW
+        if (shouldTriggerPow(message)) {
+          // 清除失败的 PoW solution
+          powSolutionRef.current = null;
+          showError(message || t('PoW 验证失败，请重试'));
+          return;
         }
         showError(message || t('签到失败'));
       }
@@ -212,6 +297,20 @@ const CheckinCalendar = ({ t, status, turnstileEnabled, turnstileSiteKey }) => {
     setCurrentMonth(month);
   };
 
+  // 计算按钮文本
+  const getButtonText = () => {
+    if (!initialLoaded) return t('加载中...');
+    if (checkinData.stats?.checked_in_today) return t('今日已签到');
+    if (powSolving) {
+      const attempts = powProgress?.attempts || 0;
+      return t('计算中...') + (attempts > 0 ? ` (${Math.floor(attempts / 1000)}K)` : '');
+    }
+    return t('立即签到');
+  };
+
+  // 判断按钮是否正在加载
+  const isButtonLoading = checkinLoading || !initialLoaded || powSolving;
+
   return (
     <Card className='!rounded-2xl'>
       <Modal
@@ -222,15 +321,15 @@ const CheckinCalendar = ({ t, status, turnstileEnabled, turnstileSiteKey }) => {
         onCancel={() => {
           setTurnstileModalVisible(false);
           setTurnstileWidgetKey((v) => v + 1);
+          // 清除保存的 PoW solution
+          powSolutionRef.current = null;
         }}
       >
         <div className='flex justify-center py-2'>
           <Turnstile
             key={turnstileWidgetKey}
             sitekey={turnstileSiteKey}
-            onVerify={(token) => {
-              doCheckin(token);
-            }}
+            onVerify={handleTurnstileVerify}
             onExpire={() => {
               setTurnstileWidgetKey((v) => v + 1);
             }}
@@ -261,30 +360,49 @@ const CheckinCalendar = ({ t, status, turnstileEnabled, turnstileSiteKey }) => {
             <div className='text-xs text-gray-500 dark:text-gray-400'>
               {!initialLoaded
                 ? t('正在加载签到状态...')
-                : checkinData.stats?.checked_in_today
-                  ? t('今日已签到，累计签到') +
-                    ` ${checkinData.stats?.total_checkins || 0} ` +
-                    t('天')
-                  : t('每日签到可获得随机额度奖励')}
+                : powSolving
+                  ? t('正在进行安全验证...')
+                  : checkinData.stats?.checked_in_today
+                    ? t('今日已签到，累计签到') +
+                      ` ${checkinData.stats?.total_checkins || 0} ` +
+                      t('天')
+                    : t('每日签到可获得随机额度奖励')}
             </div>
           </div>
         </div>
         <Button
           type='primary'
           theme='solid'
-          icon={<Gift size={16} />}
+          icon={powSolving ? <Cpu size={16} className="animate-pulse" /> : <Gift size={16} />}
           onClick={() => doCheckin()}
-          loading={checkinLoading || !initialLoaded}
+          loading={isButtonLoading}
           disabled={!initialLoaded || checkinData.stats?.checked_in_today}
           className='!bg-green-600 hover:!bg-green-700'
         >
-          {!initialLoaded
-            ? t('加载中...')
-            : checkinData.stats?.checked_in_today
-              ? t('今日已签到')
-              : t('立即签到')}
+          {getButtonText()}
         </Button>
       </div>
+
+      {/* PoW 计算进度条 */}
+      {powSolving && powProgress && (
+        <div className='mt-3 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg'>
+          <div className='flex items-center gap-2 mb-1'>
+            <Cpu size={14} className='text-blue-500 animate-spin' />
+            <Typography.Text className='text-xs text-blue-600 dark:text-blue-400'>
+              {t('正在计算安全验证...')}
+            </Typography.Text>
+          </div>
+          <Progress
+            percent={Math.min((powProgress.attempts / 500000) * 100, 95)}
+            showInfo={false}
+            size='small'
+            stroke='var(--semi-color-primary)'
+          />
+          <Typography.Text className='text-xs text-gray-500 mt-1'>
+            {t('已尝试')} {Math.floor(powProgress.attempts / 1000)}K {t('次计算')}
+          </Typography.Text>
+        </div>
+      )}
 
       {/* 可折叠内容 */}
       <Collapsible isOpen={isCollapsed === false} keepDOM>
