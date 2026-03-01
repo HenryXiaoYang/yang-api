@@ -36,16 +36,17 @@ type IPSwitchDetectionConfig struct {
 }
 
 type UserIPSwitchMetrics struct {
-	RapidSwitchCount int      `json:"rapid_switch_count"`
-	AvgIPDuration    float64  `json:"avg_ip_duration"`
-	RealSwitchCount  int      `json:"real_switch_count"`
-	RiskTags         []string `json:"ip_risk_tags"`
+	RapidSwitchCount int              `json:"rapid_switch_count"`
+	AvgIPDuration    float64          `json:"avg_ip_duration"`
+	RealSwitchCount  int              `json:"real_switch_count"`
+	RiskTags         []string         `json:"ip_risk_tags"`
+	RiskSegments     []*IPStaySegment `json:"risk_segments"`
 }
 
-type ipStaySegment struct {
-	Ip        string
-	FirstSeen int64
-	LastSeen  int64
+type IPStaySegment struct {
+	Ip        string `json:"ip"`
+	FirstSeen int64  `json:"first_seen"`
+	LastSeen  int64  `json:"last_seen"`
 }
 
 func GetIPSwitchDetectionConfig() IPSwitchDetectionConfig {
@@ -108,6 +109,7 @@ func AnalyzeUserIPSwitchLogs(logs []*model.UserIPAccessLog, cfg IPSwitchDetectio
 		AvgIPDuration:    0,
 		RealSwitchCount:  0,
 		RiskTags:         []string{},
+		RiskSegments:     []*IPStaySegment{},
 	}
 	if len(logs) == 0 {
 		return metrics
@@ -122,12 +124,12 @@ func AnalyzeUserIPSwitchLogs(logs []*model.UserIPAccessLog, cfg IPSwitchDetectio
 		return orderedLogs[i].SeenAt < orderedLogs[j].SeenAt
 	})
 
-	segments := buildIPStaySegments(orderedLogs)
+	segments := BuildIPStaySegments(orderedLogs)
 	if len(segments) == 0 {
 		return metrics
 	}
 
-	// “真实切换”定义为不同 IP 数量 - 1，而不是停留分段数量 - 1。
+	// "真实切换"定义为不同 IP 数量 - 1，而不是停留分段数量 - 1。
 	uniqueIPCount := 0
 	seenIPs := make(map[string]struct{}, len(segments))
 	for _, segment := range segments {
@@ -145,18 +147,22 @@ func AnalyzeUserIPSwitchLogs(logs []*model.UserIPAccessLog, cfg IPSwitchDetectio
 
 	var totalDuration int64
 	rapidSwitchCount := 0
+	riskSegments := make([]*IPStaySegment, 0)
 	for idx, segment := range segments {
 		duration := segment.LastSeen - segment.FirstSeen
 		if duration < 0 {
 			duration = 0
 		}
 		totalDuration += duration
+		// 非最后一个分段且停留时长低于阈值的被计为快速切换（异常）
 		if idx < len(segments)-1 && duration < int64(cfg.RapidSwitchDuration) {
 			rapidSwitchCount++
+			riskSegments = append(riskSegments, segment)
 		}
 	}
 	metrics.RapidSwitchCount = rapidSwitchCount
 	metrics.AvgIPDuration = float64(totalDuration) / float64(len(segments))
+	metrics.RiskSegments = riskSegments
 
 	if metrics.RapidSwitchCount >= cfg.RapidSwitchThreshold &&
 		metrics.AvgIPDuration < float64(cfg.RapidSwitchDuration) {
@@ -215,6 +221,36 @@ func ListRiskUserIdsByIPSwitch(riskType string, cfg IPSwitchDetectionConfig) ([]
 	return riskUserIds, nil
 }
 
+func ListAllRiskUserIds(cfg IPSwitchDetectionConfig) ([]int, error) {
+	userIds, err := model.ListUserIdsWithIPAccessLogs()
+	if err != nil {
+		return nil, err
+	}
+	if len(userIds) == 0 {
+		return []int{}, nil
+	}
+
+	riskUserIds := make([]int, 0, len(userIds)/5)
+	for start := 0; start < len(userIds); start += riskUserScanBatchSize {
+		end := start + riskUserScanBatchSize
+		if end > len(userIds) {
+			end = len(userIds)
+		}
+		batchUserIds := userIds[start:end]
+		metricsMap, buildErr := BuildUserIPSwitchMetricsByUserIds(batchUserIds, cfg)
+		if buildErr != nil {
+			return nil, buildErr
+		}
+		for _, userId := range batchUserIds {
+			if metricsMap[userId] != nil && len(metricsMap[userId].RiskTags) > 0 {
+				riskUserIds = append(riskUserIds, userId)
+			}
+		}
+	}
+	sort.Ints(riskUserIds)
+	return riskUserIds, nil
+}
+
 func isSupportedIPRiskType(riskType string) bool {
 	return riskType == IPRiskRapidSwitch || riskType == IPRiskHopping
 }
@@ -223,12 +259,12 @@ func IsSupportedUserControlRiskType(riskType string) bool {
 	return isSupportedIPRiskType(riskType)
 }
 
-func buildIPStaySegments(logs []*model.UserIPAccessLog) []ipStaySegment {
+func BuildIPStaySegments(logs []*model.UserIPAccessLog) []*IPStaySegment {
 	if len(logs) == 0 {
-		return []ipStaySegment{}
+		return []*IPStaySegment{}
 	}
 
-	segments := make([]ipStaySegment, 0, len(logs))
+	segments := make([]*IPStaySegment, 0, len(logs))
 	firstLogIdx := -1
 	for idx, log := range logs {
 		if normalizeIPAddress(log.Ip, 64) != "" {
@@ -241,7 +277,7 @@ func buildIPStaySegments(logs []*model.UserIPAccessLog) []ipStaySegment {
 	}
 
 	firstLog := logs[firstLogIdx]
-	currentSegment := ipStaySegment{
+	currentSegment := &IPStaySegment{
 		Ip:        normalizeIPAddress(firstLog.Ip, 64),
 		FirstSeen: firstLog.SeenAt,
 		LastSeen:  firstLog.SeenAt,
@@ -262,7 +298,7 @@ func buildIPStaySegments(logs []*model.UserIPAccessLog) []ipStaySegment {
 			continue
 		}
 		segments = append(segments, currentSegment)
-		currentSegment = ipStaySegment{
+		currentSegment = &IPStaySegment{
 			Ip:        normalizedIP,
 			FirstSeen: log.SeenAt,
 			LastSeen:  log.SeenAt,

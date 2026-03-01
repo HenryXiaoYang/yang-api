@@ -22,9 +22,13 @@ import {
   Button,
   Empty,
   Input,
+  Modal,
+  Popover,
   Select,
   Space,
+  Table,
   Tag,
+  Tooltip,
   Typography,
 } from '@douyinfe/semi-ui';
 import {
@@ -39,6 +43,7 @@ import {
   showError,
   showSuccess,
   createCardProPagination,
+  timestamp2string,
 } from '../../helpers';
 import { useIsMobile } from '../../hooks/common/useIsMobile';
 
@@ -68,6 +73,8 @@ const UserControl = () => {
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [batchLoading, setBatchLoading] = useState(false);
   const [featureEnabled, setFeatureEnabled] = useState(true);
+  const [logModalVisible, setLogModalVisible] = useState(false);
+  const [logModalData, setLogModalData] = useState({ username: '', logs: [] });
 
   const loadUsers = async (
     page = activePage,
@@ -237,26 +244,23 @@ const UserControl = () => {
       {
         title: 'ID',
         dataIndex: 'id',
-        width: 80,
       },
       {
         title: t('用户名'),
         dataIndex: 'username',
-        width: 180,
-        render: (text, record) => (
-          <Space spacing={4}>
-            <Text strong>{text}</Text>
-            {renderStatus(record)}
-          </Space>
-        ),
+        render: (text) => <Text strong>{text}</Text>,
       },
       {
         title: t('显示名称'),
         dataIndex: 'display_name',
-        width: 180,
         render: (text) => (
           <Text type='tertiary'>{text || '-'}</Text>
         ),
+      },
+      {
+        title: t('状态'),
+        dataIndex: 'status',
+        render: (_, record) => renderStatus(record),
       },
       {
         title: t('IP 风险'),
@@ -276,19 +280,92 @@ const UserControl = () => {
                 ))}
               </div>
               <Text type='tertiary' size='small'>
-                {t('快速切换')} {record.rapid_switch_count || 0} ·{' '}
-                {t('真实切换')} {record.real_switch_count || 0} ·{' '}
-                {t('平均停留')} {Number(record.avg_ip_duration || 0).toFixed(1)}
-                s
+                <Tooltip content={t('在阈值时间内切换到其他 IP 的次数')}>
+                  <span style={{ cursor: 'help', borderBottom: '1px dashed var(--semi-color-text-2)' }}>
+                    {t('快速切换')}
+                  </span>
+                </Tooltip>{' '}
+                {record.rapid_switch_count || 0} ·{' '}
+                <Tooltip content={t('在阈值时间内使用过的不同 IP 数量')}>
+                  <span style={{ cursor: 'help', borderBottom: '1px dashed var(--semi-color-text-2)' }}>
+                    {t('真实切换')}
+                  </span>
+                </Tooltip>{' '}
+                {record.real_switch_count || 0} ·{' '}
+                <Tooltip content={t('每个 IP 的平均停留时长（秒）')}>
+                  <span style={{ cursor: 'help', borderBottom: '1px dashed var(--semi-color-text-2)' }}>
+                    {t('平均停留')}
+                  </span>
+                </Tooltip>{' '}
+                {Number(record.avg_ip_duration || 0).toFixed(1)}s
               </Text>
             </div>
           );
         },
       },
       {
-        title: t('操作'),
+        title: t('用户 IP'),
+        dataIndex: 'ip_list',
+        render: (_, record) => {
+          const ipList = record.ip_list || [];
+          if (!ipList.length) {
+            return <Text type='tertiary'>-</Text>;
+          }
+          const displayIps = ipList.slice(0, 2);
+          const extraCount = ipList.length - displayIps.length;
+          return (
+            <div className='flex flex-wrap gap-1'>
+              {displayIps.map((ip) => (
+                <Tag key={ip}>{ip}</Tag>
+              ))}
+              {extraCount > 0 && (
+                <Popover
+                  content={
+                    <div className='max-h-60 overflow-auto p-2'>
+                      {ipList.map((ip) => (
+                        <div key={ip} className='py-1'>
+                          <Tag>{ip}</Tag>
+                        </div>
+                      ))}
+                    </div>
+                  }
+                  position='top'
+                >
+                  <Tag style={{ cursor: 'pointer' }}>+{extraCount}</Tag>
+                </Popover>
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        title: t('风险详情'),
+        dataIndex: 'ip_logs',
+        render: (_, record) => {
+          const ipLogs = record.ip_logs || [];
+          if (!ipLogs.length) {
+            return <Text type='tertiary'>-</Text>;
+          }
+          return (
+            <Button
+              size='small'
+              theme='borderless'
+              onClick={() => {
+                setLogModalData({
+                  username: record.username,
+                  logs: ipLogs,
+                });
+                setLogModalVisible(true);
+              }}
+            >
+              {t('查看日志')} ({ipLogs.length})
+            </Button>
+          );
+        },
+      },
+      {
+        title: '',
         dataIndex: 'operate',
-        width: 120,
         render: (_, record) => (
           <Button
             type={record.status === 1 ? 'danger' : 'secondary'}
@@ -313,6 +390,9 @@ const UserControl = () => {
             <Text strong>{t('用户风控')}</Text>
             <Text type='tertiary' size='small'>
               {t('基于 IP 切换行为识别高风险账号并进行批量风控')}
+            </Text>
+            <Text type='tertiary' size='small'>
+              {t('快速切换：在阈值时间内切换到其他 IP 的次数 · 真实切换：在阈值时间内使用过的不同 IP 数量 · 平均停留：每个 IP 的平均停留时长')}
             </Text>
             {!featureEnabled && (
               <Text type='danger' size='small'>
@@ -415,6 +495,41 @@ const UserControl = () => {
           scroll={{ x: 'max-content' }}
         />
       </CardPro>
+
+      <Modal
+        title={`${t('IP 访问日志')} - ${logModalData.username}`}
+        visible={logModalVisible}
+        onCancel={() => setLogModalVisible(false)}
+        footer={null}
+        width={700}
+        bodyStyle={{ maxHeight: '60vh', overflow: 'auto' }}
+      >
+        <Table
+          dataSource={logModalData.logs.map((log, idx) => ({
+            ...log,
+            key: idx,
+          }))}
+          columns={[
+            {
+              title: 'IP',
+              dataIndex: 'ip',
+              render: (text) => <Tag>{text}</Tag>,
+            },
+            {
+              title: t('首次出现'),
+              dataIndex: 'first_seen',
+              render: (text) => timestamp2string(text),
+            },
+            {
+              title: t('最后出现'),
+              dataIndex: 'last_seen',
+              render: (text) => timestamp2string(text),
+            },
+          ]}
+          pagination={false}
+          size='small'
+        />
+      </Modal>
     </div>
   );
 };
