@@ -59,6 +59,7 @@ const UserControl = () => {
   const [riskType, setRiskType] = useState('');
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [batchLoading, setBatchLoading] = useState(false);
+  const [featureEnabled, setFeatureEnabled] = useState(true);
 
   const loadUsers = async (
     page = activePage,
@@ -78,10 +79,18 @@ const UserControl = () => {
       const res = await API.get(url);
       const { success, data, message } = res.data;
       if (!success) {
+        if ((message || '').includes('功能未启用')) {
+          setFeatureEnabled(false);
+          setUsers([]);
+          setTotal(0);
+          setSelectedRowKeys([]);
+          return;
+        }
         showError(message || t('加载失败'));
         return;
       }
 
+      setFeatureEnabled(true);
       const list = (data?.items || []).map((item) => ({
         ...item,
         key: item.id,
@@ -201,7 +210,7 @@ const UserControl = () => {
       setSelectedRowKeys(keys);
     },
     getCheckboxProps: (record) => ({
-      disabled: record.deleted || record.status !== 1,
+      disabled: !featureEnabled || record.deleted || record.status !== 1,
     }),
   };
 
@@ -351,7 +360,7 @@ const UserControl = () => {
           <Button
             type={record.status === 1 ? 'danger' : 'secondary'}
             size='small'
-            disabled={record.deleted}
+            disabled={!featureEnabled || record.deleted}
             onClick={() => handleSingleControl(record)}
           >
             {record.status === 1 ? t('禁用') : t('启用')}
@@ -359,7 +368,7 @@ const UserControl = () => {
         ),
       },
     ],
-    [t],
+    [featureEnabled, t],
   );
 
   return (
@@ -372,6 +381,11 @@ const UserControl = () => {
             <Text type='tertiary' size='small'>
               {t('基于 TLS 指纹与 IP 切换行为识别高风险账号并进行批量封控')}
             </Text>
+            {!featureEnabled && (
+              <Text type='danger' size='small'>
+                {t('功能未启用，请在设置中开启')}
+              </Text>
+            )}
           </div>
         }
         actionsArea={
@@ -384,11 +398,13 @@ const UserControl = () => {
                 onEnterPress={handleSearch}
                 placeholder={t('搜索用户名 / 邮箱 / ID')}
                 style={{ width: isMobile ? 220 : 280 }}
+                disabled={!featureEnabled}
               />
               <Select
                 value={riskType}
                 onChange={handleRiskTypeChange}
                 style={{ width: isMobile ? 180 : 220 }}
+                disabled={!featureEnabled}
               >
                 <Select.Option value=''>{t('全部风险类型')}</Select.Option>
                 <Select.Option value='IP_RAPID_SWITCH'>
@@ -396,15 +412,21 @@ const UserControl = () => {
                 </Select.Option>
                 <Select.Option value='IP_HOPPING'>IP_HOPPING</Select.Option>
               </Select>
-              <Button onClick={handleSearch} type='primary'>
+              <Button
+                onClick={handleSearch}
+                type='primary'
+                disabled={!featureEnabled}
+              >
                 {t('搜索')}
               </Button>
-              <Button onClick={handleReset}>{t('重置')}</Button>
+              <Button onClick={handleReset} disabled={!featureEnabled}>
+                {t('重置')}
+              </Button>
             </Space>
             <Button
               type='danger'
               loading={batchLoading}
-              disabled={selectedRowKeys.length === 0}
+              disabled={!featureEnabled || selectedRowKeys.length === 0}
               onClick={handleBatchDisable}
             >
               {t('批量禁用账号')} ({selectedRowKeys.length})
@@ -453,7 +475,9 @@ const UserControl = () => {
               darkModeImage={
                 <IllustrationNoResultDark style={{ width: 150, height: 150 }} />
               }
-              description={t('暂无数据')}
+              description={
+                featureEnabled ? t('暂无数据') : t('功能未启用，请在设置中开启')
+              }
               style={{ padding: 30 }}
             />
           }
