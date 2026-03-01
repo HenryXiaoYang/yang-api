@@ -14,10 +14,8 @@ import (
 )
 
 const (
-	IPRiskRapidSwitch         = "IP_RAPID_SWITCH"
-	IPRiskHopping             = "IP_HOPPING"
-	RiskTypeSharedFingerprint = "SHARED_FINGERPRINT"
-	RiskTypeSuspectedAlt      = "SUSPECTED_ALT"
+	IPRiskRapidSwitch = "IP_RAPID_SWITCH"
+	IPRiskHopping     = "IP_HOPPING"
 
 	userControlEnabledOptionKey = "user_control_enabled"
 
@@ -115,12 +113,35 @@ func AnalyzeUserIPSwitchLogs(logs []*model.UserIPAccessLog, cfg IPSwitchDetectio
 		return metrics
 	}
 
-	segments := buildIPStaySegments(logs)
+	orderedLogs := append([]*model.UserIPAccessLog(nil), logs...)
+	// 先按时间升序分析，避免上游返回顺序变化导致切换计数异常。
+	sort.SliceStable(orderedLogs, func(i, j int) bool {
+		if orderedLogs[i].SeenAt == orderedLogs[j].SeenAt {
+			return orderedLogs[i].Id < orderedLogs[j].Id
+		}
+		return orderedLogs[i].SeenAt < orderedLogs[j].SeenAt
+	})
+
+	segments := buildIPStaySegments(orderedLogs)
 	if len(segments) == 0 {
 		return metrics
 	}
 
-	metrics.RealSwitchCount = len(segments) - 1
+	// “真实切换”定义为不同 IP 数量 - 1，而不是停留分段数量 - 1。
+	uniqueIPCount := 0
+	seenIPs := make(map[string]struct{}, len(segments))
+	for _, segment := range segments {
+		if segment.Ip == "" {
+			continue
+		}
+		if _, exists := seenIPs[segment.Ip]; !exists {
+			seenIPs[segment.Ip] = struct{}{}
+			uniqueIPCount++
+		}
+	}
+	if uniqueIPCount > 1 {
+		metrics.RealSwitchCount = uniqueIPCount - 1
+	}
 
 	var totalDuration int64
 	rapidSwitchCount := 0
@@ -199,11 +220,7 @@ func isSupportedIPRiskType(riskType string) bool {
 }
 
 func IsSupportedUserControlRiskType(riskType string) bool {
-	return isSupportedIPRiskType(riskType) || IsSharedFingerprintRiskType(riskType)
-}
-
-func IsSharedFingerprintRiskType(riskType string) bool {
-	return riskType == RiskTypeSharedFingerprint || riskType == RiskTypeSuspectedAlt
+	return isSupportedIPRiskType(riskType)
 }
 
 func buildIPStaySegments(logs []*model.UserIPAccessLog) []ipStaySegment {
@@ -212,15 +229,29 @@ func buildIPStaySegments(logs []*model.UserIPAccessLog) []ipStaySegment {
 	}
 
 	segments := make([]ipStaySegment, 0, len(logs))
-	firstLog := logs[0]
+	firstLogIdx := -1
+	for idx, log := range logs {
+		if normalizeIPAddress(log.Ip, 64) != "" {
+			firstLogIdx = idx
+			break
+		}
+	}
+	if firstLogIdx < 0 {
+		return segments
+	}
+
+	firstLog := logs[firstLogIdx]
 	currentSegment := ipStaySegment{
 		Ip:        normalizeIPAddress(firstLog.Ip, 64),
 		FirstSeen: firstLog.SeenAt,
 		LastSeen:  firstLog.SeenAt,
 	}
-	for idx := 1; idx < len(logs); idx++ {
+	for idx := firstLogIdx + 1; idx < len(logs); idx++ {
 		log := logs[idx]
 		normalizedIP := normalizeIPAddress(log.Ip, 64)
+		if normalizedIP == "" {
+			continue
+		}
 		if normalizedIP == currentSegment.Ip {
 			if log.SeenAt > currentSegment.LastSeen {
 				currentSegment.LastSeen = log.SeenAt

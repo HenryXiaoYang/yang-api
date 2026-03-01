@@ -34,7 +34,6 @@ func recordUserRequestSignals(c *gin.Context, userId int) {
 	if userId <= 0 {
 		return
 	}
-	service.TrackUserTLSFingerprint(c, userId)
 	service.TrackUserIPAccess(c, userId)
 }
 
