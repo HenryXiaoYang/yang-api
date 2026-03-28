@@ -32,9 +32,9 @@ func TestAnalyzeUserIPSwitchLogsRealSwitchUsesUniqueIPCount(t *testing.T) {
 	t.Parallel()
 
 	logs := []*model.UserIPAccessLog{
-		{Id: 1, UserId: 1, Ip: "10.0.0.1", SeenAt: 10},
-		{Id: 2, UserId: 1, Ip: "10.0.0.2", SeenAt: 20},
-		{Id: 3, UserId: 1, Ip: "10.0.0.1", SeenAt: 30},
+		{Id: 1, UserId: 1, Ip: "8.8.8.1", SeenAt: 10},
+		{Id: 2, UserId: 1, Ip: "8.8.8.2", SeenAt: 20},
+		{Id: 3, UserId: 1, Ip: "8.8.8.1", SeenAt: 30},
 	}
 
 	metrics := AnalyzeUserIPSwitchLogs(logs, IPSwitchDetectionConfig{})
