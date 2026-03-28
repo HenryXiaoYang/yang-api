@@ -35,6 +35,7 @@ const routerMap = {
   channel: '/console/channel',
   token: '/console/token',
   redemption: '/console/redemption',
+  registration_code: '/console/registration-code',
   topup: '/console/topup',
   user: '/console/user',
   user_control: '/console/user-control',
@@ -182,6 +183,12 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         text: t('兑换码管理'),
         itemKey: 'redemption',
         to: '/redemption',
+        className: isAdmin() ? '' : 'tableHiddle',
+      },
+      {
+        text: t('注册码管理'),
+        itemKey: 'registration_code',
+        to: '/registration-code',
         className: isAdmin() ? '' : 'tableHiddle',
       },
       {

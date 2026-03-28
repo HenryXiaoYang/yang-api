@@ -71,6 +71,20 @@ const (
 	MsgRedemptionExpireTimeInvalid = "redemption.expire_time_invalid"
 )
 
+// Registration code related messages
+const (
+	MsgRegCodeNameLength    = "registration_code.name_length"
+	MsgRegCodeCountPositive = "registration_code.count_positive"
+	MsgRegCodeCountMax      = "registration_code.count_max"
+	MsgRegCodeCreateFailed  = "registration_code.create_failed"
+	MsgRegCodeInvalid       = "registration_code.invalid"
+	MsgRegCodeUsed          = "registration_code.used"
+	MsgRegCodeExpired       = "registration_code.expired"
+	MsgRegCodeNotProvided   = "registration_code.not_provided"
+	MsgRegCodeExpireInvalid = "registration_code.expire_time_invalid"
+	MsgRegCodeRequired      = "registration_code.required"
+)
+
 // User related messages
 const (
 	MsgUserPasswordLoginDisabled     = "user.password_login_disabled"

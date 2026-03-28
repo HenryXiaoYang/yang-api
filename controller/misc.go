@@ -121,6 +121,7 @@ func GetStatus(c *gin.Context) {
 		"checkin_enabled":             operation_setting.GetCheckinSetting().Enabled,
 		"pow_enabled":                 operation_setting.GetPoWSetting().Enabled,
 		"pow_mode":                    operation_setting.GetPoWMode(),
+		"registration_code_enabled":   common.RegistrationCodeEnabled,
 		"_qn":                         "new-api",
 	}
 

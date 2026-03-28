@@ -40,6 +40,7 @@ import {
   Divider,
   Form,
   Icon,
+  Input,
   Modal,
 } from '@douyinfe/semi-ui';
 import Title from '@douyinfe/semi-ui/lib/es/typography/title';
@@ -80,6 +81,7 @@ const RegisterForm = () => {
     email: '',
     verification_code: '',
     wechat_verification_code: '',
+    registration_code: '',
   });
   const { username, password, password2 } = inputs;
   const [userState, userDispatch] = useContext(UserContext);
@@ -295,7 +297,7 @@ const RegisterForm = () => {
       setGithubButtonDisabled(true);
     }, 20000);
     try {
-      onGitHubOAuthClicked(status.github_client_id, { shouldLogout: true });
+      onGitHubOAuthClicked(status.github_client_id, { shouldLogout: true, registrationCode: inputs.registration_code });
     } finally {
       setTimeout(() => setGithubLoading(false), 3000);
     }
@@ -304,7 +306,7 @@ const RegisterForm = () => {
   const handleDiscordClick = () => {
     setDiscordLoading(true);
     try {
-      onDiscordOAuthClicked(status.discord_client_id, { shouldLogout: true });
+      onDiscordOAuthClicked(status.discord_client_id, { shouldLogout: true, registrationCode: inputs.registration_code });
     } finally {
       setTimeout(() => setDiscordLoading(false), 3000);
     }
@@ -317,7 +319,7 @@ const RegisterForm = () => {
         status.oidc_authorization_endpoint,
         status.oidc_client_id,
         false,
-        { shouldLogout: true },
+        { shouldLogout: true, registrationCode: inputs.registration_code },
       );
     } finally {
       setTimeout(() => setOidcLoading(false), 3000);
@@ -327,7 +329,7 @@ const RegisterForm = () => {
   const handleLinuxDOClick = () => {
     setLinuxdoLoading(true);
     try {
-      onLinuxDOOAuthClicked(status.linuxdo_client_id, { shouldLogout: true });
+       onLinuxDOOAuthClicked(status.linuxdo_client_id, { shouldLogout: true, registrationCode: inputs.registration_code });
     } finally {
       setTimeout(() => setLinuxdoLoading(false), 3000);
     }
@@ -336,7 +338,7 @@ const RegisterForm = () => {
   const handleCustomOAuthClick = (provider) => {
     setCustomOAuthLoading((prev) => ({ ...prev, [provider.slug]: true }));
     try {
-      onCustomOAuthClicked(provider, { shouldLogout: true });
+      onCustomOAuthClicked(provider, { shouldLogout: true, registrationCode: inputs.registration_code });
     } finally {
       setTimeout(() => {
         setCustomOAuthLoading((prev) => ({ ...prev, [provider.slug]: false }));
@@ -410,6 +412,14 @@ const RegisterForm = () => {
             </div>
             <div className='px-2 py-8'>
               <div className='space-y-3'>
+                {status?.registration_code_enabled && (
+                  <Input
+                    placeholder={t('请输入注册码')}
+                    value={inputs.registration_code}
+                    onChange={(value) => handleChange('registration_code', value)}
+                    prefix={<IconKey />}
+                  />
+                )}
                 {status.wechat_login && (
                   <Button
                     theme='outline'
@@ -601,6 +611,17 @@ const RegisterForm = () => {
                   onChange={(value) => handleChange('password2', value)}
                   prefix={<IconLock />}
                 />
+
+                {status?.registration_code_enabled && (
+                  <Form.Input
+                    field='registration_code'
+                    label={t('注册码')}
+                    placeholder={t('请输入注册码')}
+                    name='registration_code'
+                    onChange={(value) => handleChange('registration_code', value)}
+                    prefix={<IconKey />}
+                  />
+                )}
 
                 {showEmailVerification && (
                   <>

@@ -3914,6 +3914,25 @@
     "保存排名设置": "Save Ranking Settings",
     "余额排名": "Balance Ranking",
     "剩余余额": "Remaining Balance",
-    "已使用额度": "Used Quota"
+    "已使用额度": "Used Quota",
+    "注册码管理": "Registration Codes",
+    "注册码": "Registration Code",
+    "请输入注册码": "Enter registration code",
+    "请输入注册码（首次注册需要）": "Enter registration code (required for first-time registration)",
+    "新用户注册需要注册码": "Require registration code for new user registration",
+    "添加注册码": "Add Registration Code",
+    "清除失效注册码": "Clear Invalid Codes",
+    "注册码名称": "Code Name",
+    "生成数量": "Generate Count",
+    "将删除已使用、已禁用及过期的注册码，此操作不可撤销。": "Used, disabled, and expired registration codes will be deleted. This action cannot be undone.",
+    "确定清除所有失效注册码？": "Clear all invalid registration codes?",
+    "已删除 {{count}} 条失效注册码": "Deleted {{count}} invalid registration codes",
+    "请至少选择一个注册码！": "Please select at least one registration code!",
+    "使用人 ID": "Used By",
+    "确认删除": "Confirm Delete",
+    "确定删除此注册码？此操作不可撤销。": "Are you sure you want to delete this registration code? This action cannot be undone.",
+    "批量复制": "Batch Copy",
+    "创建注册码": "Create Registration Code",
+    "编辑注册码": "Edit Registration Code"
   }
 }

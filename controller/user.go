@@ -163,6 +163,16 @@ func Register(c *gin.Context) {
 			return
 		}
 	}
+	if common.RegistrationCodeEnabled {
+		if user.RegistrationCode == "" {
+			common.ApiErrorI18n(c, i18n.MsgRegCodeRequired)
+			return
+		}
+		if err := model.ValidateRegistrationCode(user.RegistrationCode); err != nil {
+			common.ApiError(c, err)
+			return
+		}
+	}
 	exist, err := model.CheckUserExistOrDeleted(user.Username, user.Email)
 	if err != nil {
 		common.ApiErrorI18n(c, i18n.MsgDatabaseError)
@@ -195,6 +205,11 @@ func Register(c *gin.Context) {
 	if err := model.DB.Where("username = ?", cleanUser.Username).First(&insertedUser).Error; err != nil {
 		common.ApiErrorI18n(c, i18n.MsgUserRegisterFailed)
 		return
+	}
+	if common.RegistrationCodeEnabled && user.RegistrationCode != "" {
+		if err := model.UseRegistrationCode(user.RegistrationCode, insertedUser.Id); err != nil {
+			common.SysError("failed to use registration code: " + err.Error())
+		}
 	}
 	// 生成默认令牌
 	if constant.GenerateDefaultToken {
