@@ -48,6 +48,7 @@ import {
   Divider,
   Form,
   Icon,
+  Input,
   Modal,
 } from '@douyinfe/semi-ui';
 import Title from '@douyinfe/semi-ui/lib/es/typography/title';
@@ -79,6 +80,7 @@ const LoginForm = () => {
     username: '',
     password: '',
     wechat_verification_code: '',
+    registration_code: '',
   });
   const { username, password } = inputs;
   const [searchParams, setSearchParams] = useSearchParams();
@@ -330,7 +332,7 @@ const LoginForm = () => {
       setGithubButtonDisabled(true);
     }, 20000);
     try {
-      onGitHubOAuthClicked(status.github_client_id, { shouldLogout: true });
+      onGitHubOAuthClicked(status.github_client_id, { shouldLogout: true, registrationCode: inputs.registration_code });
     } finally {
       // 由于重定向，这里不会执行到，但为了完整性添加
       setTimeout(() => setGithubLoading(false), 3000);
@@ -345,7 +347,7 @@ const LoginForm = () => {
     }
     setDiscordLoading(true);
     try {
-      onDiscordOAuthClicked(status.discord_client_id, { shouldLogout: true });
+      onDiscordOAuthClicked(status.discord_client_id, { shouldLogout: true, registrationCode: inputs.registration_code });
     } finally {
       // 由于重定向，这里不会执行到，但为了完整性添加
       setTimeout(() => setDiscordLoading(false), 3000);
@@ -364,7 +366,7 @@ const LoginForm = () => {
         status.oidc_authorization_endpoint,
         status.oidc_client_id,
         false,
-        { shouldLogout: true },
+        { shouldLogout: true, registrationCode: inputs.registration_code },
       );
     } finally {
       // 由于重定向，这里不会执行到，但为了完整性添加
@@ -380,7 +382,7 @@ const LoginForm = () => {
     }
     setLinuxdoLoading(true);
     try {
-      onLinuxDOOAuthClicked(status.linuxdo_client_id, { shouldLogout: true });
+      onLinuxDOOAuthClicked(status.linuxdo_client_id, { shouldLogout: true, registrationCode: inputs.registration_code });
     } finally {
       // 由于重定向，这里不会执行到，但为了完整性添加
       setTimeout(() => setLinuxdoLoading(false), 3000);
@@ -395,7 +397,7 @@ const LoginForm = () => {
     }
     setCustomOAuthLoading((prev) => ({ ...prev, [provider.slug]: true }));
     try {
-      onCustomOAuthClicked(provider, { shouldLogout: true });
+      onCustomOAuthClicked(provider, { shouldLogout: true, registrationCode: inputs.registration_code });
     } finally {
       // 由于重定向，这里不会执行到，但为了完整性添加
       setTimeout(() => {
@@ -519,6 +521,14 @@ const LoginForm = () => {
             </div>
             <div className='px-2 py-8'>
               <div className='space-y-3'>
+                {status?.registration_code_enabled && (
+                  <Input
+                    placeholder={t('请输入注册码（首次注册需要）')}
+                    value={inputs.registration_code}
+                    onChange={(value) => handleChange('registration_code', value)}
+                    prefix={<IconKey />}
+                  />
+                )}
                 {status.wechat_login && (
                   <Button
                     theme='outline'

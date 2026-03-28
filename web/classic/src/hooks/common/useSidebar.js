@@ -50,6 +50,7 @@ export const DEFAULT_ADMIN_CONFIG = {
     models: true,
     deployment: true,
     redemption: true,
+    registration_code: true,
     user: true,
     user_control: true,
     subscription: true,

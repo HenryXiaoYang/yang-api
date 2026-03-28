@@ -82,6 +82,7 @@ import {
   CalendarClock,
   Trophy,
   Shield,
+  KeyRound,
 } from 'lucide-react';
 import {
   SiAtlassian,
@@ -143,6 +144,8 @@ export function getLucideIcon(key, selected = false) {
       return <Layers {...commonProps} color={iconColor} />;
     case 'redemption':
       return <Gift {...commonProps} color={iconColor} />;
+    case 'registration_code':
+      return <KeyRound {...commonProps} color={iconColor} />;
     case 'user':
     case 'personal':
       return <User {...commonProps} color={iconColor} />;

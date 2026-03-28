@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -26,6 +27,10 @@ func GenerateOAuthCode(c *gin.Context) {
 	affCode := c.Query("aff")
 	if affCode != "" {
 		session.Set("aff", affCode)
+	}
+	registrationCode := c.Query("registration_code")
+	if registrationCode != "" {
+		session.Set("registration_code", registrationCode)
 	}
 	session.Set("oauth_state", state)
 	err := session.Save()
@@ -111,6 +116,8 @@ func HandleOAuth(c *gin.Context) {
 			common.ApiErrorI18n(c, i18n.MsgOAuthUserDeleted)
 		case *OAuthRegistrationDisabledError:
 			common.ApiErrorI18n(c, i18n.MsgUserRegisterDisabled)
+		case *OAuthRegistrationCodeRequiredError:
+			common.ApiErrorI18n(c, i18n.MsgRegCodeRequired)
 		default:
 			common.ApiError(c, err)
 		}
@@ -203,6 +210,11 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 	if provider.IsUserIDTaken(oauthUser.ProviderUserID) {
 		err := provider.FillUserByProviderID(user, oauthUser.ProviderUserID)
 		if err != nil {
+			// If IsUserIDTaken found a soft-deleted record (uses Unscoped) but
+			// FillUserByProviderID cannot find it (no Unscoped), treat as deleted user
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, &OAuthUserDeletedError{}
+			}
 			return nil, err
 		}
 		// Check if user has been deleted
@@ -235,6 +247,20 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 	// User doesn't exist, create new user if registration is enabled
 	if !common.RegisterEnabled {
 		return nil, &OAuthRegistrationDisabledError{}
+	}
+
+	// Validate registration code if enabled
+	if common.RegistrationCodeEnabled {
+		regCode := ""
+		if rc := session.Get("registration_code"); rc != nil {
+			regCode = rc.(string)
+		}
+		if regCode == "" {
+			return nil, &OAuthRegistrationCodeRequiredError{}
+		}
+		if err := model.ValidateRegistrationCode(regCode); err != nil {
+			return nil, err
+		}
 	}
 
 	// Set up new user
@@ -296,6 +322,7 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 
 		// Perform post-transaction tasks (logs, sidebar config, inviter rewards)
 		user.FinalizeOAuthUserCreation(inviterId)
+		useRegistrationCodeForOAuth(session, user.Id)
 	} else {
 		// Built-in provider: create user and update provider ID in a transaction
 		err := model.DB.Transaction(func(tx *gorm.DB) error {
@@ -325,9 +352,22 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 
 		// Perform post-transaction tasks
 		user.FinalizeOAuthUserCreation(inviterId)
+		useRegistrationCodeForOAuth(session, user.Id)
 	}
 
 	return user, nil
+}
+
+// UseRegistrationCodeForOAuth marks the registration code as used after OAuth user creation
+func useRegistrationCodeForOAuth(session sessions.Session, userId int) {
+	if !common.RegistrationCodeEnabled {
+		return
+	}
+	if rc := session.Get("registration_code"); rc != nil {
+		if err := model.UseRegistrationCode(rc.(string), userId); err != nil {
+			common.SysError("failed to use registration code for OAuth user: " + err.Error())
+		}
+	}
 }
 
 // Error types for OAuth
@@ -341,6 +381,12 @@ type OAuthRegistrationDisabledError struct{}
 
 func (e *OAuthRegistrationDisabledError) Error() string {
 	return "registration is disabled"
+}
+
+type OAuthRegistrationCodeRequiredError struct{}
+
+func (e *OAuthRegistrationCodeRequiredError) Error() string {
+	return "registration code is required"
 }
 
 // handleOAuthError handles OAuth errors and returns translated message

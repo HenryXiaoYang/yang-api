@@ -49,7 +49,7 @@ token.status_unavailable: "This token status is unavailable"
 token.db_error: "Invalid token, database query error, please contact administrator"
 
 # Redemption messages
-redemption.name_length: "Redemption code name length must be between 1-20"
+redemption.name_length: "Redemption code name length must between 1-20"
 redemption.count_positive: "Redemption code count must be greater than 0"
 redemption.count_max: "Maximum 100 redemption codes can be generated at once"
 redemption.create_failed: "Failed to create redemption code, please try again later"
@@ -59,6 +59,17 @@ redemption.expired: "This redemption code has expired"
 redemption.failed: "Redemption failed, please try again later"
 redemption.not_provided: "Redemption code not provided"
 redemption.expire_time_invalid: "Expiration time cannot be earlier than current time"
+# Registration code messages
+registration_code.name_length: "Registration code name length must be between 1-20"
+registration_code.count_positive: "Registration code count must be greater than 0"
+registration_code.count_max: "Maximum 100 registration codes can be generated at once"
+registration_code.create_failed: "Failed to create registration code, please try again later"
+registration_code.invalid: "Invalid registration code"
+registration_code.used: "This registration code has been used"
+registration_code.expired: "This registration code has expired"
+registration_code.not_provided: "Registration code not provided"
+registration_code.expire_time_invalid: "Expiration time cannot be earlier than current time"
+registration_code.required: "Registration code is required"
 
 # User messages
 user.password_login_disabled: "Password login has been disabled by administrator"
