@@ -70,7 +70,7 @@ func AddRegistrationCode(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgRegCodeCountPositive)
 		return
 	}
-	if rc.Count > 100 {
+	if rc.Count > 10000 {
 		common.ApiErrorI18n(c, i18n.MsgRegCodeCountMax)
 		return
 	}

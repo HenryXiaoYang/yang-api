@@ -62,7 +62,7 @@ redemption.expire_time_invalid: "Expiration time cannot be earlier than current 
 # Registration code messages
 registration_code.name_length: "Registration code name length must be between 1-20"
 registration_code.count_positive: "Registration code count must be greater than 0"
-registration_code.count_max: "Maximum 100 registration codes can be generated at once"
+registration_code.count_max: "Maximum 10000 registration codes can be generated at once"
 registration_code.create_failed: "Failed to create registration code, please try again later"
 registration_code.invalid: "Invalid registration code"
 registration_code.used: "This registration code has been used"
