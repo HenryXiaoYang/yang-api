@@ -7,6 +7,7 @@ import { PerformanceSection } from '../maintenance/performance-section'
 import { UpdateCheckerSection } from '../maintenance/update-checker-section'
 import type { OperationsSettings } from '../types'
 import { createSectionRegistry } from '../utils/section-registry'
+import { PowSettings } from './components/pow-settings'
 
 const OPERATIONS_SECTIONS = [
   {
@@ -87,6 +88,21 @@ const OPERATIONS_SECTIONS = [
     build: (settings: OperationsSettings) => (
       <LogSettingsSection
         defaultEnabled={Boolean(settings.LogConsumeEnabled)}
+      />
+    ),
+  },
+  {
+    id: 'pow',
+    titleKey: 'Proof of Work',
+    descriptionKey: 'Configure anti-bot proof-of-work challenges',
+    build: (settings: OperationsSettings) => (
+      <PowSettings
+        settings={{
+          'pow_setting.enabled': settings['pow_setting.enabled'] ?? false,
+          'pow_setting.mode': settings['pow_setting.mode'] ?? 'replace',
+          'pow_setting.difficulty': settings['pow_setting.difficulty'] ?? 18,
+          'pow_setting.challenge_ttl': settings['pow_setting.challenge_ttl'] ?? 10,
+        }}
       />
     ),
   },

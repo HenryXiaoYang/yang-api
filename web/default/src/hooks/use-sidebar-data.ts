@@ -15,6 +15,8 @@ import {
   CreditCard,
   ListTodo,
   Settings,
+  ShieldAlert,
+  Trophy,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { WORKSPACE_IDS } from '@/components/layout/lib/workspace-registry'
@@ -80,6 +82,11 @@ export function useSidebarData(): SidebarData {
             configUrls: ['/usage-logs/drawing', '/usage-logs/task'],
             icon: ListTodo,
           },
+          {
+            title: t('User Rankings'),
+            url: '/user-rankings',
+            icon: Trophy,
+          },
         ],
       },
       {
@@ -121,6 +128,16 @@ export function useSidebarData(): SidebarData {
             title: t('Redemption Codes'),
             url: '/redemption-codes',
             icon: Ticket,
+          },
+          {
+            title: t('Registration Codes'),
+            url: '/registration-codes',
+            icon: Ticket,
+          },
+          {
+            title: t('User Risk Control'),
+            url: '/user-risk-control',
+            icon: ShieldAlert,
           },
           {
             title: t('Subscription Management'),
