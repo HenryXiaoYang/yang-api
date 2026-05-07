@@ -1,12 +1,11 @@
 import { parseCurrencyDisplayType } from '@/lib/currency'
-import { CheckinSettingsSection } from '../general/checkin-settings-section'
 import { PricingSection } from '../general/pricing-section'
 import { QuotaSettingsSection } from '../general/quota-settings-section'
 import { PaymentSettingsSection } from '../integrations/payment-settings-section'
 import { RatioSettingsCard } from '../models/ratio-settings-card'
 import type { BillingSettings } from '../types'
 import { createSectionRegistry } from '../utils/section-registry'
-import { PowSettings } from './components/pow-settings'
+import { CheckinPowSettings } from './components/checkin-pow-settings'
 
 const getModelDefaults = (settings: BillingSettings) => ({
   ModelPrice: settings.ModelPrice,
@@ -175,25 +174,14 @@ const BILLING_SECTIONS = [
   },
   {
     id: 'checkin',
-    titleKey: 'Check-in Rewards',
-    descriptionKey: 'Configure daily check-in rewards for users',
+    titleKey: 'Check-in & Anti-Bot',
+    descriptionKey: 'Configure daily check-in rewards and proof-of-work challenges',
     build: (settings: BillingSettings) => (
-      <CheckinSettingsSection
+      <CheckinPowSettings
         defaultValues={{
-          enabled: settings['checkin_setting.enabled'],
-          minQuota: settings['checkin_setting.min_quota'],
-          maxQuota: settings['checkin_setting.max_quota'],
-        }}
-      />
-    ),
-  },
-  {
-    id: 'pow',
-    titleKey: 'Proof of Work',
-    descriptionKey: 'Configure anti-bot proof-of-work challenges',
-    build: (settings: BillingSettings) => (
-      <PowSettings
-        settings={{
+          'checkin_setting.enabled': settings['checkin_setting.enabled'] ?? false,
+          'checkin_setting.min_quota': settings['checkin_setting.min_quota'] ?? 1000,
+          'checkin_setting.max_quota': settings['checkin_setting.max_quota'] ?? 10000,
           'pow_setting.enabled': settings['pow_setting.enabled'] ?? false,
           'pow_setting.mode': settings['pow_setting.mode'] ?? 'replace',
           'pow_setting.difficulty': settings['pow_setting.difficulty'] ?? 18,
