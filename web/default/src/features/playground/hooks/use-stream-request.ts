@@ -18,7 +18,10 @@ export function useStreamRequest() {
       onComplete: () => void,
       onError: (error: string, errorCode?: string) => void
     ) => {
-      const source = new SSE(API_ENDPOINTS.CHAT_COMPLETIONS, {
+      // Build full URL for SSE (SSE.js requires absolute or root-relative URLs)
+      const url = `${window.location.origin}${API_ENDPOINTS.CHAT_COMPLETIONS}`
+
+      const source = new SSE(url, {
         headers: getCommonHeaders(),
         method: 'POST',
         payload: JSON.stringify(payload),
