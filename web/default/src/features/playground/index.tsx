@@ -46,7 +46,7 @@ export function Playground() {
 
   // Update models when data changes
   useEffect(() => {
-    if (!modelsData) return
+    if (!modelsData || !Array.isArray(modelsData)) return
 
     setModels(modelsData)
 
@@ -59,7 +59,7 @@ export function Playground() {
 
   // Update groups when data changes
   useEffect(() => {
-    if (!groupsData) return
+    if (!groupsData || !Array.isArray(groupsData)) return
 
     // Add auto group if not present
     const hasAutoGroup = groupsData.some((g) => g.value === DEFAULT_GROUP)
