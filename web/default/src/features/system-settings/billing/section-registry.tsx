@@ -6,6 +6,7 @@ import { PaymentSettingsSection } from '../integrations/payment-settings-section
 import { RatioSettingsCard } from '../models/ratio-settings-card'
 import type { BillingSettings } from '../types'
 import { createSectionRegistry } from '../utils/section-registry'
+import { PowSettings } from './components/pow-settings'
 
 const getModelDefaults = (settings: BillingSettings) => ({
   ModelPrice: settings.ModelPrice,
@@ -182,6 +183,21 @@ const BILLING_SECTIONS = [
           enabled: settings['checkin_setting.enabled'],
           minQuota: settings['checkin_setting.min_quota'],
           maxQuota: settings['checkin_setting.max_quota'],
+        }}
+      />
+    ),
+  },
+  {
+    id: 'pow',
+    titleKey: 'Proof of Work',
+    descriptionKey: 'Configure anti-bot proof-of-work challenges',
+    build: (settings: BillingSettings) => (
+      <PowSettings
+        settings={{
+          'pow_setting.enabled': settings['pow_setting.enabled'] ?? false,
+          'pow_setting.mode': settings['pow_setting.mode'] ?? 'replace',
+          'pow_setting.difficulty': settings['pow_setting.difficulty'] ?? 18,
+          'pow_setting.challenge_ttl': settings['pow_setting.challenge_ttl'] ?? 10,
         }}
       />
     ),
