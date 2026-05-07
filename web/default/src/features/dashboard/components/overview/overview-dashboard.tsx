@@ -210,13 +210,11 @@ function StartStepItem(props: {
       <span
         className={cn(
           'bg-background relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full border shadow-xs',
-          props.step.completed && 'border-emerald-500/30 bg-emerald-500/10'
+          props.step.completed && 'border-success/30 bg-success/10'
         )}
       >
         <StatusIcon
-          className={
-            props.step.completed ? 'size-4 text-emerald-600' : 'size-4'
-          }
+          className={props.step.completed ? 'text-success size-4' : 'size-4'}
           aria-hidden='true'
         />
       </span>
@@ -316,9 +314,9 @@ function RequestPreview(props: {
 
       <div className='bg-foreground/[0.035] my-3 rounded-xl p-3 font-mono text-xs'>
         <div className='mb-2 flex items-center gap-1.5'>
-          <span className='size-2 rounded-full bg-red-400' />
-          <span className='size-2 rounded-full bg-amber-400' />
-          <span className='size-2 rounded-full bg-emerald-400' />
+          <span className='bg-destructive size-2 rounded-full' />
+          <span className='bg-warning size-2 rounded-full' />
+          <span className='bg-success size-2 rounded-full' />
         </div>
         <div className='flex flex-col gap-1 overflow-hidden'>
           {previewLines.map((line, index) => (
@@ -650,10 +648,7 @@ export function OverviewDashboard() {
               <div className='relative flex flex-wrap items-center justify-between gap-3'>
                 <div className='flex min-w-0 items-center gap-3'>
                   <span className='bg-background/70 flex size-9 shrink-0 items-center justify-center rounded-xl border shadow-xs'>
-                    <Check
-                      className='size-4 text-emerald-600'
-                      aria-hidden='true'
-                    />
+                    <Check className='text-success size-4' aria-hidden='true' />
                   </span>
                   <div className='min-w-0'>
                     <div className='flex items-center gap-2'>

@@ -4,6 +4,7 @@ import { AreaChart, BarChart3, WalletCards } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { TimeGranularity } from '@/lib/time'
 import { VCHART_OPTION } from '@/lib/vchart'
+import { useThemeCustomization } from '@/context/theme-customization-provider'
 import { useTheme } from '@/context/theme-provider'
 import {
   CONSUMPTION_DISTRIBUTION_CHART_OPTIONS,
@@ -39,6 +40,7 @@ export function ConsumptionDistributionChart(
 ) {
   const { t } = useTranslation()
   const { resolvedTheme } = useTheme()
+  const { customization } = useThemeCustomization()
   const [chartType, setChartType] = useState<ConsumptionDistributionChartType>(
     props.defaultChartType ?? 'bar'
   )
@@ -72,8 +74,14 @@ export function ConsumptionDistributionChart(
   }, [resolvedTheme])
 
   const chartData = useMemo(
-    () => processChartData(props.loading ? [] : props.data, timeGranularity, t),
-    [props.data, props.loading, timeGranularity, t]
+    () =>
+      processChartData(
+        props.loading ? [] : props.data,
+        timeGranularity,
+        t,
+        customization.preset
+      ),
+    [props.data, props.loading, timeGranularity, t, customization.preset]
   )
   const spec = chartType === 'bar' ? chartData.spec_line : chartData.spec_area
 
@@ -113,7 +121,7 @@ export function ConsumptionDistributionChart(
       <div className='h-[300px] p-1.5 sm:h-96 sm:p-2'>
         {themeReady && spec && (
           <VChart
-            key={`${chartType}-${resolvedTheme}`}
+            key={`${chartType}-${resolvedTheme}-${customization.preset}`}
             spec={{
               ...spec,
               theme: resolvedTheme === 'dark' ? 'dark' : 'light',

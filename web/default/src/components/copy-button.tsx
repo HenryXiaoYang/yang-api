@@ -50,7 +50,7 @@ export function CopyButton({
       aria-label={isCopied ? copiedAriaLabel : resolvedAriaLabel}
     >
       {isCopied ? (
-        <Check className={cn('text-green-600', iconClassName)} />
+        <Check className={cn('text-success', iconClassName)} />
       ) : (
         <Copy className={cn(iconClassName)} />
       )}

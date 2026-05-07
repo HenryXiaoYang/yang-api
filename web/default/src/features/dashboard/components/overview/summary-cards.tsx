@@ -188,7 +188,7 @@ export function SummaryCards() {
           </StaggerContainer>
         </div>
 
-        <div className='flex flex-col justify-between gap-5 border-t bg-amber-50/80 p-4 sm:p-5 xl:border-t-0 xl:border-l dark:bg-amber-950/20'>
+        <div className='bg-warning/10 flex flex-col justify-between gap-5 border-t p-4 sm:p-5 xl:border-t-0 xl:border-l'>
           <div className='flex flex-col gap-2'>
             <div className='text-muted-foreground text-sm'>
               {t('Credit remaining')}
